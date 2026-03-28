@@ -58,7 +58,7 @@ void charPrint(int n) {
 	printf("%c", n);
 }
 
-void drawBox(int i, int j, struct BoxOptions options) {
+void drawBox(int x, int y, struct BoxOptions options) {
 	Coordinate start = options.start;
 	Coordinate end = options.end;
 	char *title = options.title;
@@ -70,46 +70,24 @@ void drawBox(int i, int j, struct BoxOptions options) {
 
 	int titleLength = strlen(title);
 
-	if (j == start.y && i == start.x) {
+	if (y == start.y && x == start.x) {
 		charPrint(asciiChars[0]);
-	} else if (j == end.y && i == start.x) {
-		charPrint(asciiChars[1]);
-	} else if (j == start.y && i == end.x) {
+	} else if (y == end.y && x == start.x) {
 		charPrint(asciiChars[2]);
-	} else if (j == end.y && i == end.x) {
+	} else if (y == start.y && x == end.x) {
+		charPrint(asciiChars[1]);
+	} else if (y == end.y && x == end.x) {
 		charPrint(asciiChars[3]);
-	} else if (i == start.x) {
-		if (j > start.x + 1 && j < start.x + 1 + titleLength) {
-			printf("%c", title[j + 1 - start.x]);
-		} else {
-			charPrint(asciiChars[4]);
-		}
-	} else if (i == end.x) {
-		charPrint(asciiChars[4]);
-	} else if (j == start.y || j == end.y) {
+	} else if (y == start.y && x > start.x && x < start.x + 1 + titleLength) {
+		printf("%c", title[x - start.x - 1]);
+	} else if (x == start.x || x == end.x) {
 		charPrint(asciiChars[5]);
+	} else if (y == start.y || y == end.y) {
+		charPrint(asciiChars[4]);
 	} else {
 		printf(" ");
 	}
 }
-
-// void drawRoot(ScreenDimensions dims) {
-// 	for (int j = 0; j < dims.height; j++) {
-// 		for (int i = 0; i < dims.width; i++) {
-// 			if (j == 0 || i == 0 || j == dims.height - 1 || i == dims.width - 1) {
-// 				Coordinates start = {
-// 					0, 0
-// 				};
-			
-// 				Coordinates end = {
-// 					dims.height - 1, dims.width - 1
-// 				};
-
-// 				return drawBox(start, end, 1);
-// 			}
-// 		}
-// 	}
-// }
 
 void setColour(char colour[]){
 	printf("\033[0;39;49m");
@@ -121,61 +99,62 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 	int appNameSize = strnlen(appName, 20);
 
 	setColour(BACKGROUND);
-	for (int j = 0; j < dims.height; j++) {
-		for (int i = 0; i < dims.width; i++) {
+
+	for (int y = 0; y < dims.height; y++) {
+		for (int x = 0; x < dims.width; x++) {
 			//First header row
 			char channelName[] = "#general";
 			int channelNameSize = strnlen(channelName, 20);
 
-			if (j == 0) {
-				if (i > 10 && i < 11 + appNameSize) {
-					int adj = i - 10;
+			if (y == 0) {
+				if (x > 10 && x < 11 + appNameSize) {
+					int adj = x - 10;
 					setColour(BOLD_HEADER);
 					charPrint(appName[adj - 1]);
 					setColour(BACKGROUND);
-				} else if (i >= 27 && i < 27 + channelNameSize) {
-					printf("%c", channelName[i - 27]);
-				} else if (i == 10) {
+				} else if (x >= 27 && x < 27 + channelNameSize) {
+					printf("%c", channelName[x - 27]);
+				} else if (x == 10) {
 					charPrint(181);
-				} else if (i == 10 + appNameSize + 1) {
+				} else if (x == 10 + appNameSize + 1) {
 					charPrint(198);
-				} else if (i == 0) {
+				} else if (x == 0) {
 					charPrint(201);
-				} else if (i == dims.width - 1) {
+				} else if (x == dims.width - 1) {
 					charPrint(187);
-				} else if (i == 25) {
+				} else if (x == 25) {
 					charPrint(203);
 				} else {
 					charPrint(205);
 				}
-			} else if (j == dims.height - 1) {
+			} else if (y == dims.height - 1) {
 				//Bottom row
 				setColour(BACKGROUND);
-				if (i == 0) {
+				if (x == 0) {
 					charPrint(200);
-				} else if (i == dims.width - 1) {
+				} else if (x == dims.width - 1) {
 					charPrint(188);
-				} else if (i == 25) {
+				} else if (x == 25) {
 					charPrint(202);
 				} else {
 					charPrint(205);
 				}
-			} else if (i > 24 && j == dims.height - 3) {
+			} else if (x > 24 && y == dims.height - 3) {
 				//Messaging box
 
 				char boxTitle[] = "Message";
 				int boxTitleSize = strlen(boxTitle);
 
-				if (i == 25) {
+				if (x == 25) {
 					charPrint(204);
-				} else if (i >= 27 && i < 27 + boxTitleSize) {
-					printf("%c", boxTitle[i - 27]);
-				} else if (i == dims.width - 1) {
+				} else if (x >= 27 && x < 27 + boxTitleSize) {
+					printf("%c", boxTitle[x - 27]);
+				} else if (x == dims.width - 1) {
 					charPrint(185); 
 				} else {
 					charPrint(205);
 				}
-			} else if (i > 25 && i < dims.width && j == dims.height - 2) {
+			} else if (x > 25 && x < dims.width && y == dims.height - 3) {
 				setColour(TEXT);
 				char *messageText = inputsList[MESSAGE];
 				int messageLength = strlen(messageText);
@@ -197,24 +176,36 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 				// 	printf("%c", textState[MESSAGE][i]);
 				// }
 
-			// } else if (j >= 1 && j <= 15 && i >= 1 && i <= 30) {
-			// 	// Channels Box
+			} else if (y >= 1 && y <= 15 && x >= 1 && x <= 24) {
+				// Channels Box
+				Coordinate start = {1, 1};
+				Coordinate end = {24, 15};
 
-			// 	Coordinate start = {1, 1};
-			// 	Coordinate end = {15, 30};
-
-			// 	setColour(CHANNELS);
+				setColour(CHANNELS);
 				
-			// 	char title[] = "test";
-			// 	struct BoxOptions opts = {start, end, 0, title};
+				char title[] = "Channels";
+				struct BoxOptions opts = {start, end, 0, title};
 
-			// 	drawBox(j, i, opts);
+				drawBox(x, y, opts);
 
-			// 	setColour(BACKGROUND);
+				setColour(BACKGROUND);
+			} else if (y >= 1 && y <= 30 && x >= 1 && x <= 24) {
+				// Channels Box
+				Coordinate start = {1, 16};
+				Coordinate end = {24, 30};
+
+				setColour(CHANNELS);
+				
+				char title[] = "Users";
+				struct BoxOptions opts = {start, end, 0, title};
+
+				drawBox(x, y, opts);
+
+				setColour(BACKGROUND);
 			} else {
 				//All additional left borders
 				setColour(BACKGROUND);
-				if (i == 0 || i == 25 || i == dims.width - 1) {
+				if (x == 0 || x == 25 || x == dims.width - 1) {
 					charPrint(186);
 				} else {
 					printf(" ");
