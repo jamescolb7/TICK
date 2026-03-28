@@ -6,21 +6,38 @@
 #include "splashscreen.h"
 #include "colours.h"
 
-typedef enum {
-	SPLASHSCREEN,
-	MAIN
-} Screens;
-
 #define TOTAL_INPUTS 1
-
-typedef enum {
-	MESSAGE
-} Inputs;
 
 static volatile int clockRunning = 0;
 static volatile Screens screen = SPLASHSCREEN;
 static volatile Inputs selectedInput = MESSAGE;
 
+//Simple interface utils
+
+void clearScreen() {
+	printf("\033c");
+}
+
+void charPrint(int n) {
+	printf("%c", n);
+}
+
+void setColour(char colour[]){
+	printf("\033[0;39;49m");
+	printf("%s",colour);
+}
+
+void setCursorPos(int x, int y) {
+  printf("\033[%d;%dH", y, x);
+}
+
+//Nicely handles cleaning the screen after the SIGTERM is detected
+void interfaceCleanup() {
+	clockRunning = 0;
+	clearScreen();
+}
+
+//Retrieve terminal dimensions from the Windows API
 ScreenDimensions screenSize() {
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 
@@ -32,30 +49,6 @@ ScreenDimensions screenSize() {
 	};
 
 	return dims;
-}
-
-void clearScreen() {
-	printf("\033c");
-}
-
-typedef struct {
-	int sidebarWidth;
-} DisplayBounds;
-
-typedef struct {
-	int x;
-	int y;
-} Coordinate;
-
-struct BoxOptions {
-	Coordinate start;
-	Coordinate end;
-	int doubleThick;
-	char *title;
-};
-
-void charPrint(int n) {
-	printf("%c", n);
 }
 
 void drawBox(int x, int y, struct BoxOptions options) {
@@ -89,14 +82,9 @@ void drawBox(int x, int y, struct BoxOptions options) {
 	}
 }
 
-void setColour(char colour[]){
-	printf("\033[0;39;49m");
-	printf("%s",colour);
-}
-
 void drawRoot(ScreenDimensions dims, char **inputsList) {
 	char appName[] = "TICK";
-	int appNameSize = strnlen(appName, 20);
+	int appNameSize = strlen(appName);
 
 	setColour(BACKGROUND);
 
@@ -104,7 +92,7 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 		for (int x = 0; x < dims.width; x++) {
 			//First header row
 			char channelName[] = "#general";
-			int channelNameSize = strnlen(channelName, 20);
+			int channelNameSize = strlen(channelName);
 
 			if (y == 0) {
 				if (x > 10 && x < 11 + appNameSize) {
@@ -141,7 +129,6 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 				}
 			} else if (x > 24 && y == dims.height - 3) {
 				//Messaging box
-
 				char boxTitle[] = "Message";
 				int boxTitleSize = strlen(boxTitle);
 
@@ -159,9 +146,9 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 				char *messageText = inputsList[MESSAGE];
 				int messageLength = strlen(messageText);
 				// printf("%d", messageLength);
-				// if (messageText != NULL && i - 24 < messageLength) {
-					// if (inputsList[MESSAGE][i - 25]) 
-					// printf("%c", messageText[i - 24]);
+				// if (messageText != NULL && x - 24 < messageLength) {
+				// 	if (inputsList[MESSAGE][x - 25]) 
+				// 	printf("%c", messageText[x - 24]);
 				// } else {
 					printf(" ");
 				// }
@@ -213,12 +200,9 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 			}
 		}
 	}
-}
 
-//Nicely handles cleaning the screen after the SIGTERM is detected
-void interfaceCleanup() {
-	clockRunning = 0;
-	clearScreen();
+	setCursorPos(28, dims.height - 1);
+	printf("\033[4h");
 }
 
 //Renders views selectively
@@ -249,8 +233,8 @@ int writeToInput(int c, Inputs input, char **inputsList) {
 
 		ScreenDimensions dims = screenSize();
 
-		clearScreen();
-		renderView(dims, inputsList);
+		// clearScreen();
+		// renderView(dims, inputsList);
     return 1;
 }
 
@@ -263,16 +247,6 @@ void handleInput(int c, char **inputsList) {
 			writeToInput(c, MESSAGE, inputsList);
 			break;
 	}
-	// if (screen == SPLASHSCREEN) return screen = MAIN;
-
-	// if (screen == MAIN) writeToInput(c, MESSAGE, inputsList);
-}
-
-
-void fetchTextBuffer(Inputs input, char **inputsList) {
-	char *str = inputsList[input];
-	// int stringLength = strnlen(str)
-	// for (int i = 0; i < )
 }
 
 void clock(ScreenDimensions *initial_dims, char **inputsList) {
