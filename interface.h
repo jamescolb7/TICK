@@ -2,4 +2,13 @@ void drawRoot();
 
 void clearScreen();
 
-void startDrawing();
+void initializeDisplay();
+
+void interfaceCleanup();
+
+void setColour(char colour[]);
+
+typedef struct {
+	int height;
+	int width;
+} ScreenDimensions;

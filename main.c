@@ -1,11 +1,11 @@
 #include "interface.h"
 #include <stdio.h>
+#include <signal.h>
 
-int main () {
-	startDrawing();
+int main() {
+	signal(SIGINT, interfaceCleanup);
 
-	printf("Press Enter to exit..."); 
-	getchar();
+	initializeDisplay();
 
 	return 0;
 }
