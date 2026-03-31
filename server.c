@@ -7,7 +7,7 @@
 #include <iphlpapi.h>
 #include <stdio.h>
 
-#define SERVER_PORT "3001"
+#define SERVER_PORT "3000"
 
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "lWs2_32")
@@ -22,35 +22,47 @@ void closeSocket(char *message, struct addrinfo *addr, SOCKET *socket) {
 
 //Initialize t
 int main() {
-  WSADATA wsaData;
-	
-  SOCKET listenSocket = INVALID_SOCKET, clientSocket = INVALID_SOCKET;
+  	WSADATA wsaData;
+  	SOCKET listenSocket = INVALID_SOCKET, clientSocket = INVALID_SOCKET;
 
-	struct addrinfo *localAddress = NULL, clientAddress; 
+	struct addrinfo *localAddress = NULL, clientAddress;
 
-  int servErr = WSAStartup(MAKEWORD(2,2), &wsaData);
+	printf("WSA Startup\n");
+
+	int servErr = WSAStartup(MAKEWORD(2,2), &wsaData);
 	if (servErr != 0) {
 		printf("Server failed to start");
     return 1;
 	}
+	printf("WSA Startup successful\n");
 
-	ZeroMemory(&localAddress, sizeof(localAddress));
+	ZeroMemory(&clientAddress, sizeof(clientAddress));
 	clientAddress.ai_family = AF_INET;
 	clientAddress.ai_socktype = SOCK_STREAM;
 	clientAddress.ai_protocol = IPPROTO_TCP;
 	clientAddress.ai_flags = AI_PASSIVE;
 
+	printf("Getting address info\n");
+
 	servErr = getaddrinfo(NULL, SERVER_PORT,&clientAddress,&localAddress);
-	if(servErr == SOCKET_ERROR) {
+	if(servErr != 0) {
 		closeSocket("Failed on port 3000", NULL, &listenSocket);
 		return 1;
 	}
+
+	printf("Address info valid\n");
+
+	printf("Creating listening socket\n");
 
 	listenSocket = socket(localAddress->ai_family, localAddress->ai_socktype, localAddress->ai_protocol);
 	if(listenSocket == INVALID_SOCKET){
 			closeSocket("Invalid Socket", NULL, NULL);
 			return 2;
 	}
+
+	printf("Listening socket created\n");
+
+	printf("Binding on port %s\n", SERVER_PORT);
 	
 	servErr = bind(listenSocket, localAddress->ai_addr, (int)localAddress->ai_addrlen);
 	if(servErr == SOCKET_ERROR){
@@ -58,7 +70,11 @@ int main() {
 		return 1;
 	}
 
+	printf("Bind successful\n");
+
 	freeaddrinfo(localAddress);
+
+	printf("Listening on port %s\n", SERVER_PORT);
 
 	servErr = listen(listenSocket, SOMAXCONN);
 	if(servErr == SOCKET_ERROR){
@@ -66,14 +82,18 @@ int main() {
 		return 1;
 	}
 
+	printf("Client found on port %s\n", SERVER_PORT);
+	
 	clientSocket = accept(listenSocket, NULL, NULL);
 	if(clientSocket == INVALID_SOCKET){
 		closeSocket("Client socket is invalid", NULL, &listenSocket);
 		return 1;
 	}
 
-	// closesocket(listenSocket);
-	// WSACleanup();
+	printf("Client connected\n");
+
+	closesocket(listenSocket);
+	WSACleanup();
 
 	// localAddress.sin_adr.s_addr = INADDR_ANY;
 	// localAddress.pin_port = 3000;
