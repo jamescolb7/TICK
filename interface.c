@@ -6,23 +6,13 @@
 #include "splashscreen.h"
 #include "colours.h"
 
-#define TOTAL_INPUTS 1
-
 static volatile int clockRunning = 0;
 static volatile Screens screen = SPLASHSCREEN;
 static volatile Inputs selectedInput = MESSAGE;
 
 //Simple interface utils
-void clearScreen(int lines) {
-	if (lines == 0) {
-		printf("\033c");
-	} else {
-		for (int i = 0; i < lines - 1; i++) {
-			// printf("%d", i);
-			printf("\033[0J");
-		}
-		// printf("a");
-	}
+void clearScreen() {
+	printf("\033c");
 }
 
 void charPrint(int n) {
@@ -38,10 +28,16 @@ void setCursorPos(int x, int y) {
   printf("\033[%d;%dH", y, x);
 }
 
+//A more complicated clearscreen that can clear a specific amount of lines
+void clearLines(int lines, ScreenDimensions dims) {
+    setCursorPos(1, dims.height - lines + 1);
+    printf("\033[0J");
+}
+
 //Nicely handles cleaning the screen after the SIGTERM is detected
 void interfaceCleanup() {
 	clockRunning = 0;
-	clearScreen(0);
+	clearScreen();
 }
 
 //Retrieve terminal dimensions from the Windows API
@@ -95,10 +91,9 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 
 	setColour(BACKGROUND);
 
-	int startHeight = startLine != 0 ? dims.height - startLine : 0;
-	// printf("%d", startHeight);
+	int startHeight = startLine != 0 ? dims.height - startLine - 1 : 0;
 
-	setCursorPos(0, startHeight);
+	setCursorPos(1, startHeight);
 
 	for (int y = startHeight; y < dims.height; y++) {
 		for (int x = 0; x < dims.width; x++) {
@@ -153,7 +148,8 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 				} else {
 					charPrint(205);
 				}
-			} else if (x > 25 && x < dims.width && y == dims.height - 3) {
+			} else if (x > 25 && x < dims.width && y == dims.height - 2) {
+				// printf("EXISTS");
 				setColour(TEXT);
 				char *messageText = inputsList[MESSAGE];
 				int messageLength = strlen(messageText);
@@ -213,7 +209,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 		}
 	}
 
-	setCursorPos(28, dims.height - 1);
+	// setCursorPos(28, dims.height - 1);
 	// printf("\033[4h");
 }
 
@@ -247,13 +243,13 @@ int writeToInput(int c, Inputs input, char **inputsList) {
 
 		// clearScreen();
 		// renderView(dims, inputsList);
-		clearScreen(3);
+		// clearLines(2, dims);
 
 		Coordinate displayStart = {23, dims.height - 3};
 
 		renderView(dims, 2, inputsList);
 
-		printf("%c", c);
+		// printf("%c", c);
 
     return 1;
 }
@@ -285,7 +281,7 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 		if (dims.height == initial_dims -> height && dims.width == initial_dims -> width && curscreen == screen) {
 			Sleep(5);
 		} else {
-			clearScreen(0);
+			clearScreen();
 			renderView(dims, 0, inputsList);
 
 			Sleep(5);
@@ -299,7 +295,7 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 void initializeDisplay() {
 	clockRunning = 1;
 
-	clearScreen(0);
+	clearScreen();
 
 	ScreenDimensions initial_dims = screenSize();
 

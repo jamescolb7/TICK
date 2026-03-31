@@ -1,3 +1,5 @@
+#define TOTAL_INPUTS 1
+
 void drawRoot();
 
 void clearScreen();
