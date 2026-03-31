@@ -13,9 +13,16 @@ static volatile Screens screen = SPLASHSCREEN;
 static volatile Inputs selectedInput = MESSAGE;
 
 //Simple interface utils
-
-void clearScreen() {
-	printf("\033c");
+void clearScreen(int lines) {
+	if (lines == 0) {
+		printf("\033c");
+	} else {
+		for (int i = 0; i < lines - 1; i++) {
+			// printf("%d", i);
+			printf("\033[0J");
+		}
+		// printf("a");
+	}
 }
 
 void charPrint(int n) {
@@ -34,7 +41,7 @@ void setCursorPos(int x, int y) {
 //Nicely handles cleaning the screen after the SIGTERM is detected
 void interfaceCleanup() {
 	clockRunning = 0;
-	clearScreen();
+	clearScreen(0);
 }
 
 //Retrieve terminal dimensions from the Windows API
@@ -82,13 +89,18 @@ void drawBox(int x, int y, struct BoxOptions options) {
 	}
 }
 
-void drawRoot(ScreenDimensions dims, char **inputsList) {
+void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	char appName[] = "TICK";
 	int appNameSize = strlen(appName);
 
 	setColour(BACKGROUND);
 
-	for (int y = 0; y < dims.height; y++) {
+	int startHeight = startLine != 0 ? dims.height - startLine : 0;
+	// printf("%d", startHeight);
+
+	setCursorPos(0, startHeight);
+
+	for (int y = startHeight; y < dims.height; y++) {
 		for (int x = 0; x < dims.width; x++) {
 			//First header row
 			char channelName[] = "#general";
@@ -202,17 +214,17 @@ void drawRoot(ScreenDimensions dims, char **inputsList) {
 	}
 
 	setCursorPos(28, dims.height - 1);
-	printf("\033[4h");
+	// printf("\033[4h");
 }
 
 //Renders views selectively
-void renderView(ScreenDimensions dims, char **inputsList) {
+void renderView(ScreenDimensions dims, int lines, char **inputsList) {
 	switch (screen){
 		case SPLASHSCREEN:
 			splashscreen(dims);
 			break;
 		case MAIN:
-			drawRoot(dims, inputsList);
+			drawRoot(dims, lines, inputsList);
 			break;
 	}
 }
@@ -235,6 +247,14 @@ int writeToInput(int c, Inputs input, char **inputsList) {
 
 		// clearScreen();
 		// renderView(dims, inputsList);
+		clearScreen(3);
+
+		Coordinate displayStart = {23, dims.height - 3};
+
+		renderView(dims, 2, inputsList);
+
+		printf("%c", c);
+
     return 1;
 }
 
@@ -257,6 +277,7 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 		ScreenDimensions dims = screenSize();
 
 		if (_kbhit()) {
+			// setCursorPos(dims.width, dims.height);
 			handleInput(getch(), inputsList);
 		}
 
@@ -264,8 +285,8 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 		if (dims.height == initial_dims -> height && dims.width == initial_dims -> width && curscreen == screen) {
 			Sleep(5);
 		} else {
-			clearScreen();
-			renderView(dims, inputsList);
+			clearScreen(0);
+			renderView(dims, 0, inputsList);
 
 			Sleep(5);
 			initial_dims -> width = dims.width;
@@ -278,7 +299,7 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 void initializeDisplay() {
 	clockRunning = 1;
 
-	clearScreen();
+	clearScreen(0);
 
 	ScreenDimensions initial_dims = screenSize();
 
@@ -288,6 +309,6 @@ void initializeDisplay() {
 		inputsList[i] = (char *)malloc(sizeof(char));
 	}
 
-	renderView(initial_dims, inputsList);
+	renderView(initial_dims, 0, inputsList);
 	clock(&initial_dims, inputsList);
 }
