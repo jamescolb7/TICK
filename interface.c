@@ -174,11 +174,10 @@ int drawMessages(int x, int y, ScreenMessage messages[], int messagesCount, Scre
 		int userLen = strlen(message.username);
 		if (stringIndex >= 0 && stringIndex < userLen) {
 			printf("%c", message.username[stringIndex]);
-		} else if (stringIndex == userLen) {
-			printf(" ");
 		} else {
 			printf(" ");
 		}
+		setColour(BACKGROUND);
 	} else if (lineType == 1) {
 		//Content
 		setColour(TEXT);
@@ -188,7 +187,9 @@ int drawMessages(int x, int y, ScreenMessage messages[], int messagesCount, Scre
 		} else {
 			printf(" ");
 		}
-	} else if (lineType == 2) {
+		setColour(BACKGROUND);
+	} else {
+		//Handle any other line type values
 		printf(" ");
 	}
 	
@@ -284,7 +285,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 
 				setColour(BACKGROUND);
 			} else if (x > 26 && x < dims.width - 2 && y > 1 && y < dims.height - 4) {
-				drawMessages(x, y, msgs, 20, dims);
+			drawMessages(x, y, msgs, 10, dims);
 			} else {
 				//All additional left borders
 				setColour(BACKGROUND);

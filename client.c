@@ -156,6 +156,16 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, ScreenMessage *messages){
         messages[i].timestamp = 0;
         free(buff);
     }
+
+    // Fill remaining empty slots with empty structures
+    for(int i = count; i < 10; i++){
+        messages[i].message = malloc(1);
+        messages[i].message[0] = '\0';
+        messages[i].username = malloc(1);
+        messages[i].username[0] = '\0';
+        messages[i].timestamp = 0;
+    }
+
     return 0;
 }
 
