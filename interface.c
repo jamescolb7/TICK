@@ -59,9 +59,11 @@ void drawBox(int x, int y, struct BoxOptions options) {
 	Coordinate end = options.end;
 	char *title = options.title;
 
+	//Defines the ASCII characters for the double and single thick borders
 	int singleThick[6] = {218, 191, 192, 217, 196, 179};
 	int doubleThick[6] = {201, 187, 200, 188, 205, 186};
 
+	//Selects appropriate character array to use
 	int *asciiChars = options.doubleThick == 0 ? singleThick : doubleThick;
 
 	int titleLength = strlen(title);
@@ -75,6 +77,7 @@ void drawBox(int x, int y, struct BoxOptions options) {
 	} else if (y == end.y && x == end.x) {
 		charPrint(asciiChars[3]);
 	} else if (y == start.y && x > start.x && x < start.x + 1 + titleLength) {
+		//Title printing
 		printf("%c", title[x - start.x - 1]);
 	} else if (x == start.x || x == end.x) {
 		charPrint(asciiChars[5]);
@@ -91,9 +94,9 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 
 	setColour(BACKGROUND);
 
-	int startHeight = startLine != 0 ? dims.height - startLine - 1 : 0;
+	int startHeight = startLine != 0 ? dims.height - startLine : 0;
 
-	setCursorPos(1, startHeight);
+	setCursorPos(1, startHeight + 1);
 
 	for (int y = startHeight; y < dims.height; y++) {
 		for (int x = 0; x < dims.width; x++) {
@@ -148,29 +151,18 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 				} else {
 					charPrint(205);
 				}
-			} else if (x > 25 && x < dims.width && y == dims.height - 2) {
-				// printf("EXISTS");
+			} else if (x > 25 && x < dims.width - 1 && y == dims.height - 2) {
+				//Message box text content
 				setColour(TEXT);
+
 				char *messageText = inputsList[MESSAGE];
 				int messageLength = strlen(messageText);
-				// printf("%d", messageLength);
-				// if (messageText != NULL && x - 24 < messageLength) {
-				// 	if (inputsList[MESSAGE][x - 25]) 
-				// 	printf("%c", messageText[x - 24]);
-				// } else {
-					printf(" ");
-				// }
-				// if (text != 0) {
-				// 	printf("%c", text);
-				// } else {
-					// printf(" ");
-				// }
-				// int textState = inputStates[MESSAGE];
-				// int textLength = strnlen(textState, dims.width - 26);
-				// for (int i = 0; i < textLength; i++) {
-				// 	printf("%c", textState[MESSAGE][i]);
-				// }
 
+				if (messageText != NULL && x - 27 < messageLength && x - 27 >= 0) {
+					printf("%c", messageText[x - 27]);
+				} else {
+					printf(" ");
+				}
 			} else if (y >= 1 && y <= 15 && x >= 1 && x <= 24) {
 				// Channels Box
 				Coordinate start = {1, 1};
@@ -209,8 +201,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 		}
 	}
 
-	// setCursorPos(28, dims.height - 1);
-	// printf("\033[4h");
+	setCursorPos(28, dims.height - 1);
 }
 
 //Renders views selectively
@@ -226,34 +217,49 @@ void renderView(ScreenDimensions dims, int lines, char **inputsList) {
 }
 
 int writeToInput(int c, Inputs input, char **inputsList) {
+		//Make sure the char is something valid, (a-z, A-Z, symbols, etc, not things like delete)
+		if ((c < 33 || c > 126) && c != 32 && c != 8) return 0;
+	
     char *str = inputsList[input];
     if (str == NULL) return 0;
 
     int currentLength = strlen(str);
-    char *newStr = realloc(str, (currentLength + 2) * sizeof(char));
-    if (newStr == NULL) return 0;
+    if (c == 8) {
+			//Backspace handling
+			if (currentLength < 1) return 0;
+			char *newStr = realloc(str, (currentLength == 1 ? 1 : (currentLength - 1)) * sizeof(char));
+			if (newStr == NULL) return 0;
 
-    newStr[currentLength] = (char)c;
-		//Need the null terminated pointer here
-    newStr[currentLength + 1] = '\0';
+			if (currentLength == 1) {
+				//Case where there would be no characters in the string, only the null character
+				newStr[0] = '\0';
+			} else {
+				newStr[currentLength - 1] = '\0';
+			}
+			inputsList[input] = newStr;
+		} else {
+			//Adding a new character
+			char *newStr = realloc(str, (currentLength + 1) * sizeof(char));
+			if (newStr == NULL) return 0;
 
-    inputsList[input] = newStr;
+			newStr[currentLength] = (char)c;
+			//Need the null terminated character here
+			newStr[currentLength + 1] = '\0';
+			inputsList[input] = newStr;
+		}
 
 		ScreenDimensions dims = screenSize();
 
-		// clearScreen();
-		// renderView(dims, inputsList);
-		// clearLines(2, dims);
-
-		Coordinate displayStart = {23, dims.height - 3};
-
-		renderView(dims, 2, inputsList);
-
-		// printf("%c", c);
+		//Extra screen logic for the message, clearing the last two lines to reprint content
+		if (input == MESSAGE) {
+			clearLines(2, dims);
+			renderView(dims, 2, inputsList);
+		}
 
     return 1;
 }
 
+//Basic screen input handling
 void handleInput(int c, char **inputsList) {
 	switch (screen){
 		case SPLASHSCREEN:
@@ -273,7 +279,6 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 		ScreenDimensions dims = screenSize();
 
 		if (_kbhit()) {
-			// setCursorPos(dims.width, dims.height);
 			handleInput(getch(), inputsList);
 		}
 
@@ -303,8 +308,11 @@ void initializeDisplay() {
 	char **inputsList = malloc(TOTAL_INPUTS * sizeof(char*));
 	for (int i = 0; i < TOTAL_INPUTS; i++) {
 		inputsList[i] = (char *)malloc(sizeof(char));
+		//Important to initialize these strings with a null character
+		inputsList[i][0] = '\0';
 	}
 
+	//Render the first view and start the display clock
 	renderView(initial_dims, 0, inputsList);
 	clock(&initial_dims, inputsList);
 }
