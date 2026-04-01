@@ -29,11 +29,13 @@ struct BoxOptions {
 
 typedef enum {
 	MESSAGE,
-	USERNAME,
-	SERVER_IP
+	SERVER_IP_INPUT,
+	USERNAME_INPUT
 } Inputs;
 
 typedef enum {
 	SPLASHSCREEN,
+	HOST_PAGE,
+	USERNAME_PAGE,
 	MAIN
 } Screens;

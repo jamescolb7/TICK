@@ -1,14 +1,42 @@
 #include <stdio.h>
+#include <winsock2.h>
 #include <windows.h>
 #include <string.h>
 #include <conio.h>
 
 #include "splashscreen.h"
 #include "colours.h"
+#include "DSAFunctions.h"
+#include "client.h"
 
 static volatile int clockRunning = 0;
 static volatile Screens screen = SPLASHSCREEN;
 static volatile Inputs selectedInput = MESSAGE;
+int selectedChannel = 0;
+
+char *serverIP = "";
+
+#pragma comment(lib, "ws2_32")
+
+SOCKET sock;
+User currentUser = {0, "Undefined"};
+// Channel currentChannel = {"Undefined",}
+
+ScreenMessage msgs[10] = {
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0},
+		{"", "", 0}
+};
+
+ScreenChannel chan[] = {
+	{GENERAL, "#general"}, {CHILL, "#chill"}, {MEMES, "#memes"}, {QUOTES, "#quotes"}, {NEWS, "#news"}, {OFF_TOPIC, "#off_topic"} 
+};
 
 //Simple interface utils
 void clearScreen() {
@@ -54,7 +82,8 @@ ScreenDimensions screenSize() {
 	return dims;
 }
 
-void drawBox(int x, int y, struct BoxOptions options) {
+//Draws a box to the screen
+void drawBox(int x, int y, struct BoxOptions options, void (*f)(int x, int y)) {
 	Coordinate start = options.start;
 	Coordinate end = options.end;
 	char *title = options.title;
@@ -84,8 +113,86 @@ void drawBox(int x, int y, struct BoxOptions options) {
 	} else if (y == start.y || y == end.y) {
 		charPrint(asciiChars[4]);
 	} else {
+		(*f)(x, y);
+	}
+}
+
+void drawChannels(int x, int y) {
+	if (y >= 3 && y <= 13 && x >= 3 && x <= 22) {
+		if (y % 2 == 1) {
+			int index = (y - 3) / 2;
+			if (index >= 0 && index < sizeof(chan) / sizeof(chan[0])) {
+				char *str = chan[index].channel_name;
+				int stringIndex = x - 3;
+				if (stringIndex < strlen(str) && strlen(str) != 0) {
+					printf("%c", str[stringIndex]);
+				} else {
+					if (index == selectedChannel) {
+						printf("<");
+					} else {
+						printf(" ");
+					}
+				}
+			} else {
+				printf(" ");
+			}
+		} else {
+			printf(" ");
+		}
+	} else {
 		printf(" ");
 	}
+};
+
+//Handles drawing of actual messages to the screen
+int drawMessages(int x, int y, ScreenMessage messages[], int messagesCount, ScreenDimensions dims) {
+	//Find what message this would correspond to based on the y value
+	int messageIndex = ((dims.height - 5) - y) / 3;
+	
+	//Find the position of the header line
+	int headerLinePos = dims.height - 7 - messageIndex * 3;
+	
+	//Making sure that the entire message can be rendered in the space, so that no content is cutoff
+	if (headerLinePos < 2) {
+		printf(" ");
+		return 0;
+	}
+	
+	//Making sure the index is valid and won't cause any memory issues
+	if (messageIndex < 0 || messageIndex >= messagesCount) {
+		printf(" ");
+		return 0;
+	}
+	
+	ScreenMessage message = messages[messageIndex];
+	int lineType = y - headerLinePos;
+	int stringIndex = x - 27;
+	
+	if (lineType == 0) {
+		//Header
+		setColour(HEADER);
+		int userLen = strlen(message.username);
+		if (stringIndex >= 0 && stringIndex < userLen) {
+			printf("%c", message.username[stringIndex]);
+		} else if (stringIndex == userLen) {
+			printf(" ");
+		} else {
+			printf(" ");
+		}
+	} else if (lineType == 1) {
+		//Content
+		setColour(TEXT);
+		int contentLen = strlen(message.message);
+		if (stringIndex >= 0 && stringIndex < contentLen) {
+			printf("%c", message.message[stringIndex]);
+		} else {
+			printf(" ");
+		}
+	} else if (lineType == 2) {
+		printf(" ");
+	}
+	
+	return 1;
 }
 
 void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
@@ -101,7 +208,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	for (int y = startHeight; y < dims.height; y++) {
 		for (int x = 0; x < dims.width; x++) {
 			//First header row
-			char channelName[] = "#general";
+			char *channelName = chan[selectedChannel].channel_name;
 			int channelNameSize = strlen(channelName);
 
 			if (y == 0) {
@@ -170,25 +277,14 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 
 				setColour(CHANNELS);
 				
-				char title[] = "Channels";
+				char title[] = "Channels (Tab)";
 				struct BoxOptions opts = {start, end, 0, title};
 
-				drawBox(x, y, opts);
+				drawBox(x, y, opts, drawChannels);
 
 				setColour(BACKGROUND);
-			} else if (y >= 1 && y <= 30 && x >= 1 && x <= 24) {
-				// Channels Box
-				Coordinate start = {1, 16};
-				Coordinate end = {24, 30};
-
-				setColour(CHANNELS);
-				
-				char title[] = "Users";
-				struct BoxOptions opts = {start, end, 0, title};
-
-				drawBox(x, y, opts);
-
-				setColour(BACKGROUND);
+			} else if (x > 26 && x < dims.width - 2 && y > 1 && y < dims.height - 4) {
+				drawMessages(x, y, msgs, 20, dims);
 			} else {
 				//All additional left borders
 				setColour(BACKGROUND);
@@ -204,11 +300,93 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	setCursorPos(28, dims.height - 1);
 }
 
+void drawHostInput(ScreenDimensions dims, char **inputsList) {
+	char header[18] = "Enter a Server IP:";
+
+	char continueStr[18] = "Then press enter.";
+
+	char *boxText = inputsList[SERVER_IP_INPUT];
+	int boxTextLen = strlen(boxText);
+
+	for (int i = 0; i < 6; i++) {
+		int lineSize = 18;
+		int startIndex = dims.width / 2 - lineSize / 2;
+
+		for (int j = 0; j < dims.width; j++) {
+			if (j >= startIndex && j < startIndex + lineSize) {
+				if (i == 2) {
+					setColour(HEADER);
+					printf("%c", header[j - startIndex]);
+				} else if (i == 3) {
+					setColour(TEXT);
+					int stringIndex = j - startIndex;
+					if (stringIndex >= 0 && stringIndex < boxTextLen) {
+						printf("%c", boxText[stringIndex]);
+					} else {
+						printf(" ");
+					}
+				} else if (i == 5) {
+					setColour(GREEN_BLINK);
+					printf("%c", continueStr[j - startIndex]);
+				}
+			} else {
+				printf(" ");
+			}
+		}
+    
+		printf("\n");
+	}
+}
+
+void drawUsernameInput(ScreenDimensions dims, char **inputsList) {
+	char header[18] = "Enter a Username:";
+
+	char continueStr[18] = "Then press enter.";
+
+	char *boxText = inputsList[USERNAME_INPUT];
+	int boxTextLen = strlen(boxText);
+
+	for (int i = 0; i < 6; i++) {
+		int lineSize = 18;
+		int startIndex = dims.width / 2 - lineSize / 2;
+
+		for (int j = 0; j < dims.width; j++) {
+			if (j >= startIndex && j < startIndex + lineSize) {
+				if (i == 2) {
+					setColour(HEADER);
+					printf("%c", header[j - startIndex]);
+				} else if (i == 3) {
+					setColour(TEXT);
+					int stringIndex = j - startIndex;
+					if (stringIndex >= 0 && stringIndex < boxTextLen) {
+						printf("%c", boxText[stringIndex]);
+					} else {
+						printf(" ");
+					}
+				} else if (i == 5) {
+					setColour(GREEN_BLINK);
+					printf("%c", continueStr[j - startIndex]);
+				}
+			} else {
+				printf(" ");
+			}
+		}
+    
+		printf("\n");
+	}
+}
+
 //Renders views selectively
 void renderView(ScreenDimensions dims, int lines, char **inputsList) {
 	switch (screen){
 		case SPLASHSCREEN:
 			splashscreen(dims);
+			break;
+		case HOST_PAGE:
+			drawHostInput(dims, inputsList);
+			break;
+		case USERNAME_PAGE:
+			drawUsernameInput(dims, inputsList);
 			break;
 		case MAIN:
 			drawRoot(dims, lines, inputsList);
@@ -254,19 +432,130 @@ int writeToInput(int c, Inputs input, char **inputsList) {
 		if (input == MESSAGE) {
 			clearLines(2, dims);
 			renderView(dims, 2, inputsList);
-		}
+		} else if (input == SERVER_IP_INPUT || input == USERNAME_INPUT) {
+			clearScreen();
+			renderView(dims, 0, inputsList);
+		} 
 
     return 1;
 }
 
+void createSocketInterface() {
+	initializeClient(&sock, serverIP);
+}
+
+void fetchMessages(char **inputsList) {
+	if (sock == INVALID_SOCKET) createSocketInterface();
+	// Message tempmessages[10];
+	recieveMsgLatest(&sock, selectedChannel, msgs);
+
+	sockShutdown(sock);
+
+	clearScreen();
+
+	ScreenDimensions dims = screenSize();
+
+	renderView(dims, 0, inputsList);
+
+	sock = INVALID_SOCKET;
+	// for (int i = 0; i < 10; i++) {
+
+	// }
+}
+
 //Basic screen input handling
 void handleInput(int c, char **inputsList) {
+	// printf("%d", c);
 	switch (screen){
 		case SPLASHSCREEN:
-			screen = MAIN;
+			screen = HOST_PAGE;
+			break;
+		case HOST_PAGE:
+			if (c == 13) {
+				//Enter pressed, move to next page, make sure something is at least typed
+				if (strlen(inputsList[SERVER_IP_INPUT]) != 0) screen = USERNAME_PAGE;
+				serverIP = inputsList[SERVER_IP_INPUT];
+				createSocketInterface();
+			} else {
+				writeToInput(c, SERVER_IP_INPUT, inputsList);
+			}
+			break;
+		case USERNAME_PAGE:
+			if (c == 13) {
+				//Enter pressed, move to next page, make sure something is at least typed
+				if (strlen(inputsList[USERNAME_INPUT]) != 0) screen = MAIN;
+				int userId = genUser(&sock, inputsList[USERNAME_INPUT]);
+
+				User u = {
+					userId,
+					inputsList[USERNAME_INPUT]
+				};
+
+				currentUser.UUID = u.UUID;
+				currentUser.name = u.name;
+			} else {
+				writeToInput(c, USERNAME_INPUT, inputsList);
+			}
 			break;
 		case MAIN:
-			writeToInput(c, MESSAGE, inputsList);
+			ScreenDimensions dims = screenSize();
+
+			if (c == 13) {
+				//Handle logic to send the message to the server
+				
+				clearLines(2, dims);
+				renderView(dims, 2, inputsList);
+				
+				MessageDeque *blankDeque = (MessageDeque *)malloc(sizeof(MessageDeque));
+				if (blankDeque != NULL) {
+					blankDeque->head = NULL;
+					blankDeque->tail = NULL;
+				}
+
+				if (sock == INVALID_SOCKET) createSocketInterface();
+
+				Channel channelObj = {
+					chan[selectedChannel].channel_name,
+					blankDeque,
+					chan[selectedChannel].id
+				};
+
+				Message *m = initMessage(inputsList[MESSAGE], &currentUser, 0, &channelObj);
+
+				if (m != NULL) {
+					int send_err = sendMessage(&sock, m);
+					free(m);
+				}
+
+				char *newMessageText = (char *)malloc(sizeof(char));
+				if (newMessageText != NULL) {
+					newMessageText[0] = '\0';
+					char *temp = inputsList[MESSAGE];
+					free(temp);
+					inputsList[MESSAGE] = newMessageText;
+				}
+
+				if (blankDeque != NULL) {
+					free(blankDeque);
+				}
+
+				sockShutdown(sock);
+
+				sock = INVALID_SOCKET;
+			} else if (c == 96) {
+				fetchMessages(inputsList);
+			} else if (c == 9) {
+				//Handle tab to loop through selected channels
+				if (selectedChannel >= 5) {
+					selectedChannel = 0;
+				} else {
+					selectedChannel++;
+				}
+				clearScreen();
+				renderView(dims, 0, inputsList);
+			} else {
+				writeToInput(c, MESSAGE, inputsList);
+			}
 			break;
 	}
 }
@@ -285,6 +574,7 @@ void clock(ScreenDimensions *initial_dims, char **inputsList) {
 		//Dimensions haven't changed and theres no reason to redraw
 		if (dims.height == initial_dims -> height && dims.width == initial_dims -> width && curscreen == screen) {
 			Sleep(5);
+			// fetchMessages();
 		} else {
 			clearScreen();
 			renderView(dims, 0, inputsList);

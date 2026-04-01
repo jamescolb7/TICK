@@ -4,6 +4,7 @@ typedef enum{
     POST_MSG,
     LATEST_MESSAGES,
     ALL_MSG,
+    GEN_ACC,
     UNKNOWN
 }CommandType;
 
@@ -20,5 +21,6 @@ Command commands[] = {
     {"#POM", POST_MSG},
     {"#LMS", LATEST_MESSAGES},
     {"#ALM", ALL_MSG},
+    {"#GAC", GEN_ACC},
     {NULL, UNKNOWN} //sentinel value
 };
