@@ -15,7 +15,7 @@ debug: CFLAGS += -g -O0
 debug: $(TARGET)
  
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ -lws2_32
  
 %.o: %.c
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
