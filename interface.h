@@ -1,3 +1,5 @@
+#define TOTAL_INPUTS 3
+
 void drawRoot();
 
 void clearScreen();
@@ -26,7 +28,9 @@ struct BoxOptions {
 };
 
 typedef enum {
-	MESSAGE
+	MESSAGE,
+	USERNAME,
+	SERVER_IP
 } Inputs;
 
 typedef enum {
