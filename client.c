@@ -152,7 +152,7 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, ScreenMessage *messages){
 
         messages[i].message   = malloc(strlen(msg_part) + 1);
         strcpy(messages[i].message, msg_part);
-        messages[i].username  = "Test";
+        messages[i].username  = "Anonymous";
         messages[i].timestamp = 0;
         free(buff);
     }

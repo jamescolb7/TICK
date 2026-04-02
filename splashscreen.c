@@ -28,7 +28,7 @@ char TICK_SPLASH[SPLASH_HEIGHT][SPLASH_WIDTH] =
                         "              |Terminal Interface Chatting Kiosk|              ",
                         "              \\---------------------------------/              ",
                         "                                                               ",
-                        "            Made By James Colbourne & Beric Dengler            ",
+                        "           Made By James, Nic, Lukas & Beric Dengler           ",
                         "                                                               ",
                         "                                                               ",
                         "                                                               ",
