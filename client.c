@@ -71,7 +71,7 @@ int sendMessage(SOCKET *socket, Message* m_message) {
     }
     //msg, timestmap size, user size, channel id size, and the 3 - s
     int len = strlen(message) + 4 + 4 + 4 + 3;
-    char out[len];
+    char *out = malloc(len);
 
     char *lenbuf = intToArray(len);
     send_err = sendOnSock(socket, lenbuf, 4);
@@ -104,6 +104,7 @@ int sendMessage(SOCKET *socket, Message* m_message) {
     free(UUID_string);
     if (send_err == 1)
         return 1;
+    free(out);
     return 0;
 }
 
@@ -148,23 +149,23 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, ScreenMessage *messages){
 
         char *msg_part       = strtok(buff, "-");
         char *timestamp_part = strtok(NULL, "-");
-        char *uuid_part      = strtok(NULL, "-");
+        char *user_part      = strtok(NULL, "-");
 
         messages[i].message   = malloc(strlen(msg_part) + 1);
         strcpy(messages[i].message, msg_part);
-        messages[i].username  = "Anonymous";
-        messages[i].timestamp = 0;
+        messages[i].username  = user_part;
+        messages[i].timestamp = atoi(timestamp_part);
         free(buff);
     }
 
     // Fill remaining empty slots with empty structures
-    for(int i = count; i < 10; i++){
-        messages[i].message = malloc(1);
-        messages[i].message[0] = '\0';
-        messages[i].username = malloc(1);
-        messages[i].username[0] = '\0';
-        messages[i].timestamp = 0;
-    }
+    // for(int i = count; i < 10; i++){
+    //     messages[i].message = malloc(1);
+    //     messages[i].message[0] = '\0';
+    //     messages[i].username = malloc(1);
+    //     messages[i].username[0] = '\0';
+    //     messages[i].timestamp = 0;
+    // }
 
     return 0;
 }

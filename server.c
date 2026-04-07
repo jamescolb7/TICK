@@ -311,12 +311,35 @@ int main() {
                     while(current != NULL && sent < 10){
                         Message *msg = current->mess;
                         if(msg == NULL) break;
-                        char *msglen_buf = intToArray((int)strlen(msg->message));
+                        int channel_id = msg->channel->channel_id;
+                        int timestamp = msg->timestamp;
+                        int UUID = msg->sender->UUID;
+
+                        char *channel_string = intToArray(channel_id);
+                        char *timestamp_string = intToArray(timestamp);
+                        char *UUID_string = username_database[findUser(BSTUser->root,UUID)].name;
+                        
+
+                        int len = strlen(msg->message) + strlen(UUID_string) + 4 + 4 + 3;
+                        char *out = malloc(len);
+                        //messy way to combine 3 char arrays into one, separating them with a '-' for ease of parsing on the other end
+                        int i = 0;
+                        memcpy(out + i, msg->message, strlen(msg->message));
+                        i += strlen(msg->message);
+                        out[i++] = '-';
+                        memcpy(out + i, timestamp_string, 4);
+                        i += 4;
+                        out[i++] = '-';
+                        memcpy(out + i, UUID_string, strlen(UUID_string));
+                        i += strlen(UUID_string);
+                        
+                        char *msglen_buf = intToArray((int)strlen(out));
                         recv_err = sendOnSock(&clientSocket, msglen_buf, 4);
+                        if(recv_err == 1) break;
+                        recv_err = sendOnSock(&clientSocket, msg->message, (int)strlen(out));
+                        if(recv_err == 1) break;
                         free(msglen_buf);
-                        if(recv_err == 1) break;
-                        recv_err = sendOnSock(&clientSocket, msg->message, (int)strlen(msg->message));
-                        if(recv_err == 1) break;
+                        free(out);
                         current = current->pright;
                         sent++;
                     }

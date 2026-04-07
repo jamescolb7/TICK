@@ -22,7 +22,7 @@ SOCKET sock;
 User currentUser = {0, "Undefined"};
 // Channel currentChannel = {"Undefined",}
 
-ScreenMessage msgs[10] = {
+ScreenMessage msgs[20] = {
 		{"", "", 0},
 		{"", "", 0},
 		{"", "", 0},
@@ -34,7 +34,9 @@ ScreenMessage msgs[10] = {
 		{"", "", 0}
 };
 
-ScreenChannel chan[] = {
+int messageArrayCount = 0;
+
+ScreenChannel channelsList[] = {
 	{GENERAL, "#general"}, {CHILL, "#chill"}, {MEMES, "#memes"}, {QUOTES, "#quotes"}, {NEWS, "#news"}, {OFF_TOPIC, "#off_topic"} 
 };
 
@@ -121,8 +123,8 @@ void drawChannels(int x, int y) {
 	if (y >= 3 && y <= 13 && x >= 3 && x <= 22) {
 		if (y % 2 == 1) {
 			int index = (y - 3) / 2;
-			if (index >= 0 && index < sizeof(chan) / sizeof(chan[0])) {
-				char *str = chan[index].channel_name;
+			if (index >= 0 && index < sizeof(channelsList) / sizeof(channelsList[0])) {
+				char *str = channelsList[index].channel_name;
 				int stringIndex = x - 3;
 				if (stringIndex < strlen(str) && strlen(str) != 0) {
 					printf("%c", str[stringIndex]);
@@ -145,55 +147,117 @@ void drawChannels(int x, int y) {
 };
 
 //Handles drawing of actual messages to the screen
-int drawMessages(int x, int y, ScreenMessage messages[], int messagesCount, ScreenDimensions dims) {
-	//Find what message this would correspond to based on the y value
-	int messageIndex = ((dims.height - 5) - y) / 3;
+// int drawMessages(int x, int y, ScreenMessage messages[], int messagesCount, ScreenDimensions dims) {
+// 	//Find what message this would correspond to based on the y value
+// 	int messageIndex = ((dims.height - 5) - y) / 3;
 	
-	//Find the position of the header line
-	int headerLinePos = dims.height - 7 - messageIndex * 3;
+// 	//Find the position of the header line
+// 	int headerLinePos = dims.height - 7 - messageIndex * 3;
 	
-	//Making sure that the entire message can be rendered in the space, so that no content is cutoff
-	if (headerLinePos < 2) {
-		printf(" ");
-		return 0;
-	}
+// 	//Making sure that the entire message can be rendered in the space, so that no content is cutoff
+// 	if (headerLinePos < 2) {
+// 		printf(" ");
+// 		return 0;
+// 	}
 	
-	//Making sure the index is valid and won't cause any memory issues
-	if (messageIndex < 0 || messageIndex >= messagesCount) {
-		printf(" ");
-		return 0;
-	}
+// 	//Making sure the index is valid and won't cause any memory issues
+// 	if (messageIndex < 0 || messageIndex >= messagesCount) {
+// 		printf(" ");
+// 		return 0;
+// 	}
 	
+// 	ScreenMessage message = messages[messageIndex];
+// 	int lineType = y - headerLinePos;
+// 	int stringIndex = x - 27;
+	
+// 	if (lineType == 0) {
+// 		//Header
+// 		setColour(HEADER);
+// 		int userLen = strlen(message.username);
+// 		if (stringIndex >= 0 && stringIndex < userLen) {
+// 			printf("%c", message.username[stringIndex]);
+// 		} else {
+// 			printf(" ");
+// 		}
+// 		setColour(BACKGROUND);
+// 	} else if (lineType == 1) {
+// 		//Content
+// 		setColour(TEXT);
+// 		int contentLen = strlen(message.message);
+// 		if (stringIndex >= 0 && stringIndex < contentLen) {
+// 			printf("%c", message.message[stringIndex]);
+// 		} else {
+// 			printf(" ");
+// 		}
+// 		setColour(BACKGROUND);
+// 	} else {
+// 		//Handle any other line type values
+// 		printf(" ");
+// 	}
+	
+// 	return 1;
+// }
+
+int drawMessages(int x, int y, ScreenMessage messages[], int messageCount, ScreenDimensions dims) {
+	// return 1;
+	//The y value with the header spacing removed
+	int offsetY = y - 2;
+
+	//Line type 0 is the title bar (username) line, 1 is the content, 2 is a space
+	int lineType = offsetY % 3;
+
+	//Finding what index in the array a message would correspond to
+	int messageIndex = (int)(offsetY / 3);
+
+	//With this logic, the message index should never be out of bounds of the messages array
+	if (messages == NULL || messageIndex >= messageCount) return 1;
+
 	ScreenMessage message = messages[messageIndex];
-	int lineType = y - headerLinePos;
-	int stringIndex = x - 27;
-	
-	if (lineType == 0) {
-		//Header
-		setColour(HEADER);
-		int userLen = strlen(message.username);
-		if (stringIndex >= 0 && stringIndex < userLen) {
-			printf("%c", message.username[stringIndex]);
-		} else {
+
+	//Offset x that will be used as a index in printing out the string
+	int offsetX = x - 27;
+
+	// return 0;
+
+	switch (lineType){
+		case 0:
+			//header
+			setColour(HEADER);
+
+			int usernameLen = strlen(message.username);
+			if (offsetX >= 0 && offsetX < usernameLen) {
+				printf("%c", message.username[offsetX]);
+			} else {
+				printf(" ");
+			}
+
+			setColour(BACKGROUND);
+			break;
+		case 1:
+			//Content
+			setColour(TEXT);
+
+			int contentLen = strlen(message.message);
+			if (offsetX >= 0 && offsetX < contentLen) {
+				printf("%c", message.message[offsetX]);
+			} else {
+				printf(" ");
+			}
+
+			// printf("C");
+			setColour(BACKGROUND);
+			break;
+		case 2:
+			//Extra space
 			printf(" ");
-		}
-		setColour(BACKGROUND);
-	} else if (lineType == 1) {
-		//Content
-		setColour(TEXT);
-		int contentLen = strlen(message.message);
-		if (stringIndex >= 0 && stringIndex < contentLen) {
-			printf("%c", message.message[stringIndex]);
-		} else {
+			break;
+		default:
+			//This shouldn't be needed but keep it anyway
 			printf(" ");
-		}
-		setColour(BACKGROUND);
-	} else {
-		//Handle any other line type values
-		printf(" ");
+			break;
 	}
-	
-	return 1;
+
+	// printf("%d", offsetY);
 }
 
 void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
@@ -209,7 +273,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	for (int y = startHeight; y < dims.height; y++) {
 		for (int x = 0; x < dims.width; x++) {
 			//First header row
-			char *channelName = chan[selectedChannel].channel_name;
+			char *channelName = channelsList[selectedChannel].channel_name;
 			int channelNameSize = strlen(channelName);
 
 			if (y == 0) {
@@ -285,7 +349,8 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 
 				setColour(BACKGROUND);
 			} else if (x > 26 && x < dims.width - 2 && y > 1 && y < dims.height - 4) {
-			drawMessages(x, y, msgs, 10, dims);
+				//Draw the channel's messages to the screen
+				drawMessages(x, y, msgs, 10, dims);
 			} else {
 				//All additional left borders
 				setColour(BACKGROUND);
@@ -459,9 +524,6 @@ void fetchMessages(char **inputsList) {
 	renderView(dims, 0, inputsList);
 
 	sock = INVALID_SOCKET;
-	// for (int i = 0; i < 10; i++) {
-
-	// }
 }
 
 //Basic screen input handling
@@ -504,8 +566,11 @@ void handleInput(int c, char **inputsList) {
 			if (c == 13) {
 				//Handle logic to send the message to the server
 				
-				clearLines(2, dims);
-				renderView(dims, 2, inputsList);
+				printf("%d", strlen(inputsList[MESSAGE]));
+				if (strlen(inputsList[MESSAGE]) == 0) break;
+				
+				// clearLines(2, dims);
+				// renderView(dims, 2, inputsList);
 				
 				MessageDeque *blankDeque = (MessageDeque *)malloc(sizeof(MessageDeque));
 				if (blankDeque != NULL) {
@@ -516,9 +581,9 @@ void handleInput(int c, char **inputsList) {
 				if (sock == INVALID_SOCKET) createSocketInterface();
 
 				Channel channelObj = {
-					chan[selectedChannel].channel_name,
+					channelsList[selectedChannel].channel_name,
 					blankDeque,
-					chan[selectedChannel].id
+					channelsList[selectedChannel].id
 				};
 
 				Message *m = initMessage(inputsList[MESSAGE], &currentUser, 0, &channelObj);
