@@ -76,17 +76,24 @@ Message *dequeueF(MessageDeque* deque){
     }
 }
 
-Message *readallF(Node* curr_node, int i){
-    //For mem safety need to check if the deque is empty, if it is return a NULL
-    if (curr_node == NULL){
-        return NULL;
+//Reads the most recent 10 messages from the deque (starts at the end as they are added 
+//from the back) and then goes forward. Curr_node should be passes as the tail node of the deque.
+Message **readallF(Node* curr_node, int len){
+    if (len<1){
+        return NULL; //Cannot have 0 len, this will mess up the array generation
     }
-
-    if(i > 0){
-        readallF(curr_node->pright,i--);
-        return curr_node->mess;
+    if (curr_node==NULL){
+        return NULL; //Not operating on empty nodes
     }
-    return curr_node->mess;
+    Message *mess_arr[len];
+    Node *ptemp = curr_node;
+    for (int i = 0; i<len; i++){
+        if (ptemp == NULL){
+            break;
+        }
+        mess_arr[i] = ptemp->mess;
+        ptemp = ptemp->pleft;
+    }
 }
 
 Message *dequeueR(MessageDeque* deque){

@@ -9,38 +9,12 @@
 
 #include "netData.h"
 #include "DSAFunctions.h"
+#include "networkHelpers.h"
 
 #define SERVER_PORT "3000"
 // #define SERVER_ADDRESS "10.218.56.137"
 
 #pragma comment(lib, "ws2_32")
-
-void closeSocket(char *message, struct addrinfo *addr, SOCKET *socket) {
-    // printf("%s\n", message);
-    if (addr != NULL) freeaddrinfo(addr);
-    if (socket != NULL) closesocket(*socket);
-    WSACleanup();
-}
-
-char* intToArray(int number)
-{
-    char *numberArray = calloc(4, sizeof(char));
-    for (int i = 3; i >= 0; --i){
-        numberArray[i] = (number % 10) + '0';
-        number /= 10;
-    }
-    return numberArray;
-}
-
-int sendOnSock(SOCKET *socket, char *message, int len) {
-    int send_err = send(*socket, message, len, 0);
-    if (send_err == SOCKET_ERROR) {
-        closeSocket("Send failed", NULL, socket);
-        return 1;
-    }
-    // printf("Bytes Sent: %ld\n", send_err);
-    return 0;
-}
 
 Channel* getChannel(ChannelNameId id) {
     for (int i = 0; channels[i].channel_name != NULL; i++) {
