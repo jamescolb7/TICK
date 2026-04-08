@@ -42,7 +42,7 @@ int sendMessage(SOCKET *socket, Message* m_message) {
 
     // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
     char *msg_values[4] = {m_message->message, timestamp_string, UUID_string, channel_string};
-    char *msg_packed = dataPackage(msg_values, 4, DELIMITER);
+    char *msg_packed = dataPackage(msg_values, DELIMITER);
     if(msg_packed == NULL){
         free(channel_string);
         free(timestamp_string);
