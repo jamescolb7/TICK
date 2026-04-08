@@ -20,6 +20,9 @@ char* intToArray(int number, int size){
 }
 
 int sendOnSock(SOCKET *socket, char *message, int len) {
+    if (socket == NULL || message == NULL || *socket == INVALID_SOCKET || len <= 0) {
+        return 1;
+    }
     int send_err = send(*socket, message, len, 0);
     if (send_err == SOCKET_ERROR) {
         closeSocket("Send failed", NULL, socket);

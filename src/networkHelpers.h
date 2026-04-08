@@ -36,5 +36,5 @@ int sendOnSock(SOCKET *socket, char *message, int len);
 
 char** dataParse(char* buff, char delimiter);
 
-char* dataPackage(char** msg_parts, char delimiter);
+char* dataPackage(char** msg_parts, int count, char delimiter);
 

@@ -594,9 +594,8 @@ void handleInput(int c, char **inputsList) {
 
 				Message *m = initMessage(inputsList[MESSAGE], &currentUser, 0, &channelObj);
 
-				if (m != NULL) {
+				if (m != NULL && sock != INVALID_SOCKET) {
 					int send_err = sendMessage(&sock, m);
-					free(m);
 				}
 
 				char *newMessageText = (char *)malloc(sizeof(char));

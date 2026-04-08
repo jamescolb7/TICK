@@ -14,7 +14,7 @@
 #define SERVER_ADDRESS "0.0.0.0"
 #define CMD_LEN 4 //dont change thes unless you are extremely aware of what the hell you are doing
 #define LENBUFF_LEN 4 //this is the sent char array length of the length info. using atoi, this means a max length of 9999, which is inefficent but whatever
-#define DELIMITER '\f' //delimiter to fit between packages sent on tcp
+#define DELIMITER '-' //delimiter to fit between packages sent on tcp
 
 #define PULL_AMOUNT 20 // total pull amount for recieve messga latest
 #define USERNAMEDATABASE_SIZE 20
@@ -268,7 +268,7 @@ int latestMessages(CommandType* cmd_type, SOCKET clientSocket, Tree* BSTUser, Us
         char *msg_string       = message_array[i]->message;
         // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
         char *msg_values[4] = {msg_string, timestamp_string, UUID_string, channel_string};
-        char *msg_packed = dataPackage(msg_values, DELIMITER);
+        char *msg_packed = dataPackage(msg_values, 4, DELIMITER);
         if(msg_packed == NULL){
             printf("Message packaging error, exiting packaging!\n");
             free(channel_string);
