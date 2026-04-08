@@ -98,6 +98,10 @@ Message **readallF(Node* curr_node, int *len){
         temp = i+1;
     }
     *len = temp; //now we can tell how long the array is!
+    if (*len<1){
+        *len = 0; //set to 0 for invalid arrays
+        return NULL; //invalid array
+    }
     return mess_arr;
 }
 
