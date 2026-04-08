@@ -78,15 +78,17 @@ int sendMessage(SOCKET *socket, Message *m_message) {
     return 0;
 }
 
-void freeMessages(Message **msgs, int count){
-    for(int i = 0; i < count; i++){
-        if (msgs[i] == NULL) break;
-        if(msgs[i]->message != NULL)
-            free(msgs[i]->message);
-        if(msgs[i]->sender != NULL)
-            free(msgs[i]->sender);
+void freeMessages(Message *msgs, int count) {
+    for (int i = 0; i < count; i++) {
+        if (msgs[i].message != NULL) 
+            free(msgs[i].message);
+        if (msgs[i].sender != NULL) {
+            if (msgs[i].sender->name != NULL) 
+                free(msgs[i].sender->name);
+            free(msgs[i].sender);
+        }
     }
-    free(*msgs);
+    free(msgs);
 }
 
 //it this will send back the latest like 20 messages along with their timestamps, who they were sent by, and their timestamp, given which channel it was sent. ALSO the return is the length of the array returned, w -1 being failure
@@ -108,8 +110,8 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, Message **messages, int *me
     int count = atoi(count_str);
     
     if (*messages != NULL) {
-        //Free the older messages array
-        freeMessages(messages, *messageCount);
+        freeMessages(*messages, *messageCount);
+        *messages = NULL;
     }
     
     *messages = calloc(count,sizeof(Message));
@@ -210,9 +212,9 @@ int initializeClient(SOCKET *out_socket, char* SERVER_ADDRESS) {
     return 1;
 
     // wait for server handshake response
-    char hsk_resp[5];
-    recv(connectSocket, hsk_resp, 4, 0);
-    hsk_resp[4] = '\0';
+    char hsk_resp[CMD_LEN+1];
+    recv(connectSocket, hsk_resp, CMD_LEN, 0);
+    hsk_resp[CMD_LEN] = '\0';
     // printf("Server handshake response: %s\n", hsk_resp);
 
     *out_socket = connectSocket;
