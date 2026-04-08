@@ -217,7 +217,7 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 
 			if (message.sender == NULL) {
 				printf(" ");
-				break;
+				return 1; 
 			}
 
 			char *username = message.sender->name;
@@ -238,7 +238,7 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 			if (message.message == NULL) { 
 				//check incase message is null
 				printf(" "); 
-				break; 
+				return 1; 
 			}
 
 			int contentLen = strlen(message.message);
