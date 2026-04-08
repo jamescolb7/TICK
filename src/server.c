@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "netData.h"
 #include "DSAFunctions.h"
 #include "networkHelpers.h"
 
@@ -15,7 +14,9 @@
 #define SERVER_ADDRESS "0.0.0.0"
 #define CMD_LEN 4 //dont change thes unless you are extremely aware of what the hell you are doing
 #define LENBUFF_LEN 4 //this is the sent char array length of the length info. using atoi, this means a max length of 9999, which is inefficent but whatever
+#define DELIMITER '\f' //delimiter to fit between packages sent on tcp
 
+#define PULL_AMOUNT 20 // total pull amount for recieve messga latest
 #define USERNAMEDATABASE_SIZE 20
 
 #pragma comment(lib, "ws2_32")
@@ -60,20 +61,23 @@ int handshakeServ(SOCKET clientSocket){
 }
 
 //recvives the post message command to put into buffer.
-int postMessage(CommandType *cmd_type, SOCKET clientSocket){
+int postMessage(CommandType *cmd_type, SOCKET clientSocket, User* username_database, Tree* BSTUser){
     printf("Post message command received\n");
 
     char lenbuf[LENBUFF_LEN+1]; // 4 chars for length + null terminator
     int msglen;
-
     int recv_err = recv(clientSocket, lenbuf, LENBUFF_LEN, 0);
+
     if(recv_err == SOCKET_ERROR){
         printf("Socket error occurred while receiving message, forcing close\n");
         printf("WSA Error: %d\n", WSAGetLastError());
-        cmd_type = CLOSE_CONNECTION;
-    } else if(recv_err == 0){
+        *cmd_type = CLOSE_CONNECTION;
+        return 1;
+    } 
+    else if(recv_err == 0){
         printf("Connection closed by client while receiving message\n");
-        cmd_type = CLOSE_CONNECTION;
+        *cmd_type = CLOSE_CONNECTION;
+        return 1;
     }
 
     lenbuf[LENBUFF_LEN] = '\0';
@@ -83,45 +87,55 @@ int postMessage(CommandType *cmd_type, SOCKET clientSocket){
     if(recv_err == SOCKET_ERROR){
         printf("Socket error occurred while receiving message, forcing close\n");
         printf("WSA Error: %d\n", WSAGetLastError());
-        cmd_type = CLOSE_CONNECTION;
-    } else if(recv_err == 0){
+        *cmd_type = CLOSE_CONNECTION;
+        free(msgbuf);
+        return 1;
+    } 
+
+    else if(recv_err == 0){
         printf("Connection closed by client while receiving message\n");
-        cmd_type = CLOSE_CONNECTION;
-    } else {
-        msgbuf[msglen] = '\0';
-        printf("Raw received: %s\n", msgbuf);
-
-        // parse out the parts
-        char *msg_part,tmp_part,usr_part,cnl_part;
-        dataParse(msgbuf, msg_part, tmp_part, usr_part, cnl_part);
-
-        //creatiung temp user to pass through as amessage
-        User *temp_user = malloc(sizeof(User));
-        temp_user->UUID = atoi(username_part);
-        int key = findUser(BSTUser->root, atoi(username_part))
-        if(key == -1){ //cannot find user meaning invalid user sent message. (security kinda)
-            printf("message sent by invalid user! \n")
-            return 1;
-        }
-        temp_user->name = username_database[key].name;
-
-        printf("User defined\n");
-
-        char *msg_copy = malloc(strlen(msg_part) + 1);
-        strcpy(msg_copy, msg_part);
-
-        //makes message
-        Channel *curr_channel = getChannel(atoi(channel_part));
-        Message *new_message  = initMessage(msg_copy, temp_user, atoi(timestamp_part), curr_channel);
-        Node *ennode          = initNode(new_message);
-
-        printf("Enque starting\n");
-
-        int q_err = enqueue(curr_channel->deque, ennode);
-        if(q_err == 0)
-            printf("queue failed\n");
+        *cmd_type = CLOSE_CONNECTION;
+        free(msgbuf);
+        return 1;
     }
+    msgbuf[msglen] = '\0';
+    printf("Raw received: %s\n", msgbuf);
+    // parse out the parts
+    char **msg_parts = dataParse(msgbuf, DELIMITER);
+    if(msg_parts == NULL){
+        printf("Failed to parse message parts!\n");
+        free(msgbuf);
+        return 1;
+    }
+    //order should be - 0 message, 1 timestamp, 2 user, 3 channel.
+    int key = findUser(BSTUser->root, atoi(msg_parts[2]));
+    if(key == -1){ //cannot find user meaning invalid user sent message. (security kinda)
+        printf("message sent by invalid user! \n");
+        free(msgbuf);
+        free(msg_parts);
+        return 1;
+    }
+    //creatiung temp user to pass through as amessage
+    User *temp_user = malloc(sizeof(User));
+    temp_user->UUID = atoi(msg_parts[2]);
+    temp_user->name = username_database[key].name;
+
+    printf("User defined\n");
+
+    char *msg_copy = malloc(strlen(msg_parts[0]) + 1);
+    strcpy(msg_copy, msg_parts[0]);
+    
+    //makes message
+    Channel *curr_channel = getChannel(atoi(msg_parts[3]));
+    Message *new_message = initMessage(msg_copy, temp_user, atoi(msg_parts[1]), curr_channel);
+    Node *ennode = initNode(new_message);
+    printf("Enque starting\n");
+    int q_err = enqueue(curr_channel->deque, ennode);
+    if(q_err == 0)
+        printf("queue failed\n");
+    free(msg_parts);
     free(msgbuf);
+    return 0;
 }
 
 int genUserBST(User* username_database, Tree** BSTUser){
@@ -167,7 +181,7 @@ int genUser(CommandType* cmd_type, SOCKET clientSocket,Tree* BSTUser, User* user
     char lenbuf[LENBUFF_LEN+1]; // 4 chars for length + null terminator
     int msglen;
 
-    recv(clientSocket, lenbuf, 4, 0);
+    recv(clientSocket, lenbuf, LENBUFF_LEN, 0);
     lenbuf[LENBUFF_LEN] = '\0';
     msglen = atoi(lenbuf);
     char *gac_buf = malloc(msglen + 1);
@@ -193,8 +207,8 @@ int genUser(CommandType* cmd_type, SOCKET clientSocket,Tree* BSTUser, User* user
         gac_buf[msglen] = '\0';
         printf("Raw received: %s\n", gac_buf);
         int new_UUID = genUserHelper(gac_buf, username_database, BSTUser);
-        char *uuid_buf = intToArray(new_UUID);
-        int err_res = sendOnSock(&clientSocket, uuid_buf, 4);
+        char *uuid_buf = intToArray(new_UUID,LENBUFF_LEN);
+        int err_res = sendOnSock(&clientSocket, uuid_buf, LENBUFF_LEN);
         free(uuid_buf);
         if(err_res == 1){
             printf("issue sending UUID\n");
@@ -205,26 +219,24 @@ int genUser(CommandType* cmd_type, SOCKET clientSocket,Tree* BSTUser, User* user
     free(gac_buf);
 }
 
-int latestMessage(CommandType cmd_type,SOCKET clientSocket,Tree* BSTUser, User* username_database){
+int latestMessages(CommandType* cmd_type, SOCKET clientSocket, Tree* BSTUser, User* username_database){
     printf("Latest messages command received\n");
-
     char lenbuf[LENBUFF_LEN+1]; // 4 chars for length + null terminator
-    int msglen;
-
-    int recv_err = recv(clientSocket, lenbuf, 4, 0);
-    lenbuf[4] = '\0';
-    int channel_id = atoi(lenbuf);
+    //recives channel id
+    int recv_err = recv(clientSocket, lenbuf, LENBUFF_LEN, 0);
     if(recv_err == SOCKET_ERROR){
         printf("Socket error occurred while receiving message, forcing close\n");
         printf("WSA Error: %d\n", WSAGetLastError());
-        cmd_type = CLOSE_CONNECTION;
+        *cmd_type = CLOSE_CONNECTION;
         return 1;
     }
+    lenbuf[LENBUFF_LEN] = '\0';
+    int channel_id = atoi(lenbuf);
     Channel *req_channel = getChannel(channel_id);
     if(req_channel == NULL || req_channel->deque == NULL){
         printf("Channel or deque not found for id %d\n", channel_id);
         // send 0 count so client doesn't block
-        char *zero = intToArray(0);
+        char *zero = intToArray(0, LENBUFF_LEN);
         sendOnSock(&clientSocket, zero, 4);
         free(zero);
         return 1;
@@ -236,47 +248,61 @@ int latestMessage(CommandType cmd_type,SOCKET clientSocket,Tree* BSTUser, User* 
         msg_count++;
         counter = counter->pright;
     }
-    char *count_buf = intToArray(msg_count);
-    sendOnSock(&clientSocket, count_buf, 4);
+    char *count_buf = intToArray(msg_count, LENBUFF_LEN);
+    sendOnSock(&clientSocket, count_buf, LENBUFF_LEN);
     free(count_buf);
-
     Node *current = req_channel->deque->head;
-    int sent = 0;
-    while(current != NULL && sent < 10){
-        Message *msg = current->mess;
-        if(msg == NULL) break;
-        int channel_id = msg->channel->channel_id;
-        int timestamp = msg->timestamp;
-        int UUID = msg->sender->UUID;
-
-        char *channel_string = intToArray(channel_id);
-        char *timestamp_string = intToArray(timestamp);
-        char *UUID_string = username_database[findUser(BSTUser->root,UUID)].name;
-        
-
-        int len = strlen(msg->message) + strlen(UUID_string) + 4 + 4 + 3;
-        char *out = malloc(len);
-        //messy way to combine 3 char arrays into one, separating them with a '-' for ease of parsing on the other end
-        int i = 0;
-        memcpy(out + i, msg->message, strlen(msg->message));
-        i += strlen(msg->message);
-        out[i++] = '-';
-        memcpy(out + i, timestamp_string, 4);
-        i += 4;
-        out[i++] = '-';
-        memcpy(out + i, UUID_string, strlen(UUID_string));
-        i += strlen(UUID_string);
-        
-        char *msglen_buf = intToArray((int)strlen(out));
-        recv_err = sendOnSock(&clientSocket, msglen_buf, 4);
-        if(recv_err == 1) break;
-        recv_err = sendOnSock(&clientSocket, msg->message, (int)strlen(out));
-        if(recv_err == 1) break;
-        free(msglen_buf);
-        free(out);
-        current = current->pright;
-        sent++;
+    int len = PULL_AMOUNT;
+    Message **message_array = readallF(current, &len);  // pass &len so readallF can update actual count
+    if(message_array == NULL){
+        printf("Failed to read messages from deque\n");
+        return 1;
     }
+    printf("Only %i found, sending to client\n", len);
+    for(int i = 0; i < len; i++){
+        char *channel_string   = intToArray(message_array[i]->channel->channel_id,   LENBUFF_LEN);
+        char *timestamp_string = intToArray(message_array[i]->timestamp, LENBUFF_LEN);
+        char *UUID_string      = username_database[findUser(BSTUser->root, message_array[i]->sender->UUID)].name;
+        char *msg_string       = message_array[i]->message;
+        // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
+        char *msg_values[4] = {msg_string, timestamp_string, UUID_string, channel_string};
+        char *msg_packed = dataPackage(msg_values, DELIMITER);
+        if(msg_packed == NULL){
+            printf("Message packaging error, exiting packaging!\n");
+            free(channel_string);
+            free(timestamp_string);
+            free(message_array);
+            return 1;
+        }
+        //needs to send length first
+        char *msglen_buf = intToArray((int)strlen(msg_packed), LENBUFF_LEN);
+        recv_err = sendOnSock(&clientSocket, msglen_buf, LENBUFF_LEN);
+        if(recv_err == 1){
+            printf("Socket error on msglen_buf for client pull.\n");
+            free(msglen_buf);
+            free(msg_packed);
+            free(channel_string);
+            free(timestamp_string);
+            free(message_array);
+            return 1;
+        }
+        recv_err = sendOnSock(&clientSocket, msg_packed, (int)strlen(msg_packed));
+        if(recv_err == 1){
+            printf("Socket error on Message data for client pull.\n");
+            free(msglen_buf);
+            free(msg_packed);
+            free(channel_string);
+            free(timestamp_string);
+            free(message_array);
+            return 1;
+        }
+        free(msglen_buf);
+        free(msg_packed);
+        free(channel_string);
+        free(timestamp_string);
+    }
+    free(message_array);
+    return 0;
 }
 
 //a simple definition func to be run to intialize the channels. Note that they are currently fixed, something that can be changed throughout development
@@ -289,7 +315,7 @@ void channel_init(){
     getChannel(OFF_TOPIC)->deque = initDeque();
 }
 
-int WSASServInit(WSADATA wsaData, SOCKET listenSocket){
+int WSAServInit(WSADATA wsaData, SOCKET *listenSocket){
     printf("WSA Startup\n");
     int servErr = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (servErr != 0) {
@@ -310,15 +336,15 @@ int WSASServInit(WSADATA wsaData, SOCKET listenSocket){
 
     servErr = getaddrinfo(NULL, SERVER_PORT, &desiredAddress, &localAddress);
     if(servErr != 0) {
-        closeSocket("Failed on port 3000", NULL, &listenSocket);
+        closeSocket("Failed on port 3000", NULL, listenSocket);
         return 1;
     }
 
     printf("Address info valid\n");
     printf("Creating listening socket\n");
 
-    listenSocket = socket(localAddress->ai_family, localAddress->ai_socktype, localAddress->ai_protocol);
-    if(listenSocket == INVALID_SOCKET){
+    *listenSocket = socket(localAddress->ai_family, localAddress->ai_socktype, localAddress->ai_protocol);
+    if(*listenSocket == INVALID_SOCKET){
         closeSocket("Invalid Socket", NULL, NULL);
         return 2;
     }
@@ -326,14 +352,15 @@ int WSASServInit(WSADATA wsaData, SOCKET listenSocket){
     printf("Listening socket created\n");
     printf("Binding on port %s\n", SERVER_PORT);
 
-    servErr = bind(listenSocket, localAddress->ai_addr, (int)localAddress->ai_addrlen);
+    servErr = bind(*listenSocket, localAddress->ai_addr, (int)localAddress->ai_addrlen);
     if(servErr == SOCKET_ERROR){
-        closeSocket("Failed to bind", localAddress, &listenSocket);
+        closeSocket("Failed to bind", localAddress, listenSocket);
         return 1;
     }
 
     printf("Bind successful\n");
     freeaddrinfo(localAddress);
+    return 0;
 }
 
 
@@ -350,7 +377,7 @@ int main() {
     struct sockaddr_in clientAddress;
     int client_addr_len = sizeof(clientAddress);
 
-    if (WSAServInit(wsaData, listenSocket)){
+    if (WSAServInit(wsaData, &listenSocket)){
         printf("WSA Intilaization Failed\n");
         return 1;
     }
@@ -398,7 +425,7 @@ int main() {
             cmd_type = get_command(command);
             switch(cmd_type) {
                 case POST_MSG:
-                    if(postMessage(&cmd_type))
+                    if(postMessage(&cmd_type,clientSocket,username_database,BSTUser))
                         printf("Posting Message Error\n");
                     break;
                 case LATEST_MESSAGES:

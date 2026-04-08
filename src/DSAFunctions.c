@@ -76,24 +76,28 @@ Message *dequeueF(MessageDeque* deque){
     }
 }
 
-//Reads the most recent 10 messages from the deque (starts at the end as they are added 
+//Reads the most recent "*len" messages from the deque (starts at the end as they are added 
 //from the back) and then goes forward. Curr_node should be passes as the tail node of the deque.
-Message **readallF(Node* curr_node, int len){
-    if (len<1){
-        return NULL; //Cannot have 0 len, this will mess up the array generation
+Message **readallF(Node* curr_node, int *len){
+    if (*len<1){
+        return NULL; //Cannot have 0 len or lower, this will mess up the array generation
     }
     if (curr_node==NULL){
         return NULL; //Not operating on empty nodes
     }
-    Message *mess_arr[len];
+    Message **mess_arr = malloc(*len); //must be malloc due to dynamic sizing
     Node *ptemp = curr_node;
-    for (int i = 0; i<len; i++){
+    int temp = 0;
+    for (int i = 0; i<*len; i++){
         if (ptemp == NULL){
             break;
         }
         mess_arr[i] = ptemp->mess;
         ptemp = ptemp->pleft;
+        temp = i+1;
     }
+    *len = temp; //now we can tell how long the array is!
+    return mess_arr;
 }
 
 Message *dequeueR(MessageDeque* deque){

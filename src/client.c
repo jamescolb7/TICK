@@ -7,12 +7,17 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "netData.h"
 #include "DSAFunctions.h"
 #include "networkHelpers.h"
 
 #define SERVER_PORT "3000"
 // #define SERVER_ADDRESS "10.218.56.137"
+#define CMD_LEN 4 //dont change thes unless you are extremely aware of what the hell you are doing
+#define LENBUFF_LEN 4 //this is the sent char array length of the length info. using atoi, this means a max length of 9999, which is inefficent but whatever
+#define DELIMITER '\f' //delimiter to fit between packages sent on tcp
+
+#define PULL_AMOUNT 20 // total pull amount for recieve messga latest
+#define USERNAMEDATABASE_SIZE 20
 
 #pragma comment(lib, "ws2_32")
 
@@ -27,121 +32,93 @@ Channel* getChannel(ChannelNameId id) {
  //sends command, then the combinded message itself w username, channelid w -- inbetween, returns 1 on failure
 int sendMessage(SOCKET *socket, Message* m_message) {
     char *command = "#POM";
-    int channel_id = m_message->channel->channel_id;
-    int timestamp = m_message->timestamp;
-    int UUID = m_message->sender->UUID;
-
-    char *message = m_message->message;
-    char *channel_string = intToArray(channel_id);
-    char *timestamp_string = intToArray(timestamp);
-    char *UUID_string = intToArray(UUID);
-
     int send_err = sendOnSock(socket, command, (int)strlen(command));
-    if (send_err == 1){
+    if (send_err == 1)
+        return 1;
+
+    char *channel_string   = intToArray(m_message->channel->channel_id, LENBUFF_LEN);
+    char *timestamp_string = intToArray(m_message->timestamp,           LENBUFF_LEN);
+    char *UUID_string      = intToArray(m_message->sender->UUID,        LENBUFF_LEN);
+
+    // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
+    char *msg_values[4] = {m_message->message, timestamp_string, UUID_string, channel_string};
+    char *msg_packed = dataPackage(msg_values, 4, DELIMITER);
+    if(msg_packed == NULL){
         free(channel_string);
         free(timestamp_string);
         free(UUID_string);
         return 1;
     }
-    //msg, timestmap size, user size, channel id size, and the 3 - s
-    int len = strlen(message) + 4 + 4 + 4 + 3;
-    char *out = malloc(len);
 
-    char *lenbuf = intToArray(len);
-    send_err = sendOnSock(socket, lenbuf, 4);
+    char *lenbuf = intToArray((int)strlen(msg_packed), LENBUFF_LEN);
+    send_err = sendOnSock(socket, lenbuf, LENBUFF_LEN);
     free(lenbuf);
     if (send_err == 1){
         free(channel_string);
         free(timestamp_string);
         free(UUID_string);
+        free(msg_packed);
         return 1;
     }
-        
 
-    //messy way to combine 3 char arrays into one, separating them with a '-' for ease of parsing on the other end
-    int i = 0;
-    memcpy(out + i, message, strlen(message));
-    i += strlen(message);
-    out[i++] = '-';
-    memcpy(out + i, timestamp_string, 4);
-    i += 4;
-    out[i++] = '-';
-    memcpy(out + i, UUID_string, 4);
-    i += 4;
-    out[i++] = '-';
-    memcpy(out + i, channel_string, 4);
-    i += 4;
-
-    send_err = sendOnSock(socket, out, len);
+    send_err = sendOnSock(socket, msg_packed, (int)strlen(msg_packed));
     free(channel_string);
     free(timestamp_string);
     free(UUID_string);
+    free(msg_packed);
     if (send_err == 1)
         return 1;
-    free(out);
     return 0;
 }
 
-//it this will send back the latest like 20 messages along with their timestamps, who they were sent by, and their timestamp, given which channel it was sent im
-int recieveMsgLatest(SOCKET *socket, int channel_id, ScreenMessage *messages){
+//it this will send back the latest like 20 messages along with their timestamps, who they were sent by, and their timestamp, given which channel it was sent. ALSO the return is the length of the array returned, w -1 being failure
+int recieveMsgLatest(SOCKET *socket, int channel_id, Message *messages){
     char *lms = "#LMS";
-    memset(messages, 0, sizeof(ScreenMessage) * 10);
+    memset(messages, 0, sizeof(Message) * PULL_AMOUNT);
     int clie_err = sendOnSock(socket, lms, (int)strlen(lms));
     if (clie_err == 1)
-        return 1;
-
-    char *channel_str = intToArray(channel_id);
+        return -1;
+    char *channel_str = intToArray(channel_id, LENBUFF_LEN);
     clie_err = sendOnSock(socket, channel_str, 4);
     free(channel_str);
     if (clie_err == 1)
-        return 1;
-
+        return -1;
     // recv count first
-    char count_str[5];
+    char count_str[LENBUFF_LEN+1];
     clie_err = recv(*socket, count_str, 4, 0);
-    if(clie_err == SOCKET_ERROR) return 1;
+    if(clie_err == SOCKET_ERROR) return -1;
     count_str[4] = '\0';
     int count = atoi(count_str);
-
     for(int i = 0; i < count; i++){
         int content_len;
-        char content_len_str[5];
-
-        clie_err = recv(*socket, content_len_str, 4, 0);
-        if (clie_err == SOCKET_ERROR) return 1;
-        if (clie_err == 0) return 0;
-        content_len_str[4] = '\0';
-        content_len = atoi(content_len_str);
-
+        char lenbuff[LENBUFF_LEN+1];
+        clie_err = recv(*socket, lenbuff, 4, 0);
+        if (clie_err == SOCKET_ERROR) return -1;
+        if (clie_err == 0) return i;
+        lenbuff[LENBUFF_LEN] = '\0';
+        content_len = atoi(lenbuff);
         char *buff = malloc(content_len + 1);
         clie_err = recv(*socket, buff, content_len, 0);
         if (clie_err == SOCKET_ERROR){
             free(buff);
-            return 1;
+            return -1;
         }
         buff[content_len] = '\0';
-
-        char *msg_part       = strtok(buff, "-");
-        char *timestamp_part = strtok(NULL, "-");
-        char *user_part      = strtok(NULL, "-");
-
-        messages[i].message   = malloc(strlen(msg_part) + 1);
-        strcpy(messages[i].message, msg_part);
-        messages[i].username  = user_part;
-        messages[i].timestamp = atoi(timestamp_part);
+        char **parts = dataParse(buff, DELIMITER);
+        if(parts == NULL){
+            free(buff);
+            return -1;
+        }
+        // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
+        messages[i].message   = malloc(strlen(parts[0]) + 1);
+        strcpy(messages[i].message, parts[0]);
+        messages[i].sender->name  = malloc(strlen(parts[2]) + 1);
+        strcpy(messages[i].sender->name, parts[2]);
+        messages[i].timestamp = atoi(parts[1]);
+        free(parts);
         free(buff);
     }
-
-    // Fill remaining empty slots with empty structures
-    // for(int i = count; i < 10; i++){
-    //     messages[i].message = malloc(1);
-    //     messages[i].message[0] = '\0';
-    //     messages[i].username = malloc(1);
-    //     messages[i].username[0] = '\0';
-    //     messages[i].timestamp = 0;
-    // }
-
-    return 0;
+    return count;
 }
 
 int initializeClient(SOCKET *out_socket, char* SERVER_ADDRESS) {
@@ -233,8 +210,8 @@ int genUser(SOCKET *connectSocket, char* username){
     if (sendOnSock(connectSocket, gac, (int)strlen(gac)))
         return -1;
 
-    char *length = intToArray((int)strlen(username));
-    int err_result = sendOnSock(connectSocket, length, 4);
+    char *length = intToArray((int)strlen(username),LENBUFF_LEN);
+    int err_result = sendOnSock(connectSocket, length, LENBUFF_LEN);
     free(length);
     if(err_result == 1){
         printf("failed to gen user (length)");
@@ -256,30 +233,3 @@ int genUser(SOCKET *connectSocket, char* username){
 
     return atoi(gac_resp);
 }
-
-
-    
-    
-    
-    // User *temp_user = malloc(sizeof(User));
-    // temp_user->UUID = 8;
-    // temp_user->name = NULL;
-
-    // Message* temp_message = initMessage("penis", temp_user, 6, getChannel(GENERAL));
-
-    // for(int i = 0; i < 40; i++){
-    //     printf("Sending message %d\n", i);
-    //     if(sendMessage(&connectSocket, temp_message)){
-    //         printf("sendMessage failed on iteration %d\n", i);
-    //         break;
-    //     }
-    // }
-
-    // Message messages[20];
-
-    // clie_err = recieveMsgLatest(&connectSocket, GENERAL, messages);
-    // if(clie_err != 0){
-    //     printf("something bad happened\n");
-    // }
-
-    // printf("||%s||\n", messages[6].message);

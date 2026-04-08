@@ -66,7 +66,7 @@ Message *dequeueF(MessageDeque *deque);
 
 //Reads most recent messages (up to 20) from the deque, curr_node is the node to start at (should
 //be the tail node), and len is the number of elements to be returned (1-20)
-Message *readallF(Node *curr_node, int len);
+Message **readallF(Node *curr_node, int *len);
 
 //Dequeues from the end of the deque
 Message *dequeueR(MessageDeque *deque);
