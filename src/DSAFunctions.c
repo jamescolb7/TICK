@@ -84,6 +84,7 @@ Message **readallF(Node* curr_node, int *len){
         return NULL; //Cannot have 0 len or lower, this will mess up the array generation
     }
     if (curr_node==NULL){
+        *len = 0; //set to 0 for invalid arrays
         return NULL; //Not operating on empty nodes
     }
     Message **mess_arr = malloc(*len*sizeof(Message*)); //must be malloc due to dynamic sizing
@@ -98,10 +99,6 @@ Message **readallF(Node* curr_node, int *len){
         temp = i+1;
     }
     *len = temp; //now we can tell how long the array is!
-    if (*len<1){
-        *len = 0; //set to 0 for invalid arrays
-        return NULL; //invalid array
-    }
     return mess_arr;
 }
 
