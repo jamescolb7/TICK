@@ -3,7 +3,7 @@
 #include <ws2tcpip.h> 
 
 void closeSocket(char *message, struct addrinfo *addr, SOCKET *socket) {
-    printf("%s\n", message);
+    // printf("%s\n", message);
     if (addr != NULL) freeaddrinfo(addr);
     if (socket != NULL) closesocket(*socket);
     WSACleanup();

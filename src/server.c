@@ -120,6 +120,7 @@ int postMessage(CommandType *cmd_type, SOCKET clientSocket, User* username_datab
         free(msg_parts);
         return 1;
     }
+    printf("findUser returned key: %d\n", key);
     //creatiung temp user to pass through as amessage
     User *temp_user = malloc(sizeof(User));
     temp_user->UUID = atoi(msg_parts[2]);
@@ -194,9 +195,8 @@ int genUserHelper(char* username, User* username_database, Tree* BSTUser){
     new_user->UUID = random_num;
 
     username_database[num_of_users] = *new_user;
-
-    num_of_users++;
     TreeNode* tree_node = initTreenode(new_user->UUID, num_of_users);
+    num_of_users++;
     insert(BSTUser->root, tree_node);
 
 	printf("made a new user! - @ UUID %d\n",new_user->UUID);

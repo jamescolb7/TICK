@@ -8,4 +8,4 @@ int sendMessage(SOCKET *socket, Message* m_message);
 
 int sockShutdown(SOCKET connectSocket);
 
-int recieveMsgLatest(SOCKET *socket, int channel_id, Message *messages);
+int recieveMsgLatest(SOCKET *socket, int channel_id, Message **messages, int *messageCount);

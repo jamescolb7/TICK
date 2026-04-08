@@ -23,8 +23,7 @@ User currentUser = {0, "Undefined"};
 // Channel currentChannel = {"Undefined",}
 
 ///depercated implementation
-//Message msgs[20] = {{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0}};
-
+Message *msgs = NULL;
 int messageArrayCount = 0;
 
 ScreenChannel channelsList[] = {
@@ -189,7 +188,7 @@ void drawChannels(int x, int y) {
 // 	return 1;
 // }
 
-int drawMessages(int x, int y, ScreenMessage messages[], int messageCount, ScreenDimensions dims) {
+int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 	// return 1;
 	//The y value with the header spacing removed
 	int offsetY = y - 2;
@@ -201,23 +200,31 @@ int drawMessages(int x, int y, ScreenMessage messages[], int messageCount, Scree
 	int messageIndex = (int)(offsetY / 3);
 
 	//With this logic, the message index should never be out of bounds of the messages array
-	if (messages == NULL || messageIndex >= messageCount) return 1;
+	if (messages == NULL || messageIndex >= messageArrayCount) {
+		printf(" ");
+		return 1;
+	}
 
-	ScreenMessage message = messages[messageIndex];
+	Message message = messages[messageIndex];
 
 	//Offset x that will be used as a index in printing out the string
 	int offsetX = x - 27;
-
-	// return 0;
 
 	switch (lineType){
 		case 0:
 			//header
 			setColour(HEADER);
 
-			int usernameLen = strlen(message.username);
+			if (message.sender == NULL) {
+				printf(" ");
+				break;
+			}
+
+			char *username = message.sender->name;
+
+			int usernameLen = strlen(username);
 			if (offsetX >= 0 && offsetX < usernameLen) {
-				printf("%c", message.username[offsetX]);
+				printf("%c", username[offsetX]);
 			} else {
 				printf(" ");
 			}
@@ -341,7 +348,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 				setColour(BACKGROUND);
 			} else if (x > 26 && x < dims.width - 2 && y > 1 && y < dims.height - 4) {
 				//Draw the channel's messages to the screen
-				drawMessages(x, y, msgs, 10, dims);
+				drawMessages(x, y, msgs, dims);
 			} else {
 				//All additional left borders
 				setColour(BACKGROUND);
@@ -516,7 +523,7 @@ void shutdownSocket() {
 void fetchMessages(char **inputsList) {
 	if (sock == INVALID_SOCKET) createSocketInterface();
 	// Message tempmessages[10];
-	recieveMsgLatest(&sock, selectedChannel, msgs);
+	recieveMsgLatest(&sock, selectedChannel, &msgs, &messageArrayCount);
 
 	sockShutdown(sock);
 
@@ -576,8 +583,8 @@ void handleInput(int c, char **inputsList) {
 				// printf("%d", strlen(inputsList[MESSAGE]));
 				if (strlen(inputsList[MESSAGE]) == 0) break;
 				
-				// clearLines(2, dims);
-				// renderView(dims, 2, inputsList);
+				clearLines(2, dims);
+				renderView(dims, 2, inputsList);
 				
 				if (createSocketInterface()) break;
 

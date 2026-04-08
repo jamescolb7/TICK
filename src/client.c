@@ -78,28 +78,49 @@ int sendMessage(SOCKET *socket, Message *m_message) {
     return 0;
 }
 
+void freeMessages(Message **msgs, int count){
+    for(int i = 0; i < count; i++){
+        if (msgs[i] == NULL) break;
+        if(msgs[i]->message != NULL)
+            free(msgs[i]->message);
+        if(msgs[i]->sender != NULL)
+            free(msgs[i]->sender);
+    }
+    free(*msgs);
+}
+
 //it this will send back the latest like 20 messages along with their timestamps, who they were sent by, and their timestamp, given which channel it was sent. ALSO the return is the length of the array returned, w -1 being failure
-int recieveMsgLatest(SOCKET *socket, int channel_id, Message *messages){
+int recieveMsgLatest(SOCKET *socket, int channel_id, Message **messages, int *messageCount){
     char *lms = "#LMS";
-    memset(messages, 0, sizeof(Message) * PULL_AMOUNT);
     int clie_err = sendOnSock(socket, lms, (int)strlen(lms));
     if (clie_err == 1)
         return -1;
     char *channel_str = intToArray(channel_id, LENBUFF_LEN);
-    clie_err = sendOnSock(socket, channel_str, 4);
+    clie_err = sendOnSock(socket, channel_str, LENBUFF_LEN);
     free(channel_str);
     if (clie_err == 1)
         return -1;
     // recv count first
     char count_str[LENBUFF_LEN+1];
-    clie_err = recv(*socket, count_str, 4, 0);
+    clie_err = recv(*socket, count_str, LENBUFF_LEN, 0);
     if(clie_err == SOCKET_ERROR) return -1;
-    count_str[4] = '\0';
+    count_str[LENBUFF_LEN] = '\0';
     int count = atoi(count_str);
+    
+    if (*messages != NULL) {
+        //Free the older messages array
+        freeMessages(messages, *messageCount);
+    }
+    
+    *messages = calloc(count,sizeof(Message));
+
+    //Adjust the count available to interface
+    *messageCount = count;
+
     for(int i = 0; i < count; i++){
         int content_len;
         char lenbuff[LENBUFF_LEN+1];
-        clie_err = recv(*socket, lenbuff, 4, 0);
+        clie_err = recv(*socket, lenbuff, LENBUFF_LEN, 0);
         if (clie_err == SOCKET_ERROR) return -1;
         if (clie_err == 0) return i;
         lenbuff[LENBUFF_LEN] = '\0';
@@ -117,12 +138,12 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, Message *messages){
             return -1;
         }
         // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
-        messages[i].sender = malloc(sizeof(User)); //need to allocate a user first
-        messages[i].message = malloc(strlen(parts[0]) + 1);
-        strcpy(messages[i].message, parts[0]);
-        messages[i].sender->name = malloc(strlen(parts[2]) + 1);
-        strcpy(messages[i].sender->name, parts[2]);
-        messages[i].timestamp = atoi(parts[1]);
+        (*messages)[i].sender = malloc(sizeof(User)); //need to allocate a user first
+        (*messages)[i].message = malloc(strlen(parts[0]) + 1);
+        strcpy((*messages)[i].message, parts[0]);
+        (*messages)[i].sender->name = malloc(strlen(parts[2]) + 1);
+        strcpy((*messages)[i].sender->name, parts[2]);
+        (*messages)[i].timestamp = atoi(parts[1]);
         free(buff);
         free(parts);
     }
