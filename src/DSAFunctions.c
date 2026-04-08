@@ -80,12 +80,13 @@ Message *dequeueF(MessageDeque* deque){
 //from the back) and then goes forward. Curr_node should be passes as the tail node of the deque.
 Message **readallF(Node* curr_node, int *len){
     if (*len<1){
+        *len = 0; //set to 0 for invalid arrays
         return NULL; //Cannot have 0 len or lower, this will mess up the array generation
     }
     if (curr_node==NULL){
         return NULL; //Not operating on empty nodes
     }
-    Message **mess_arr = malloc(*len); //must be malloc due to dynamic sizing
+    Message **mess_arr = malloc(*len*sizeof(Message*)); //must be malloc due to dynamic sizing
     Node *ptemp = curr_node;
     int temp = 0;
     for (int i = 0; i<*len; i++){

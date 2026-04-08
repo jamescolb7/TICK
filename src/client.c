@@ -117,13 +117,14 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, Message *messages){
             return -1;
         }
         // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
-        messages[i].message   = malloc(strlen(parts[0]) + 1);
+        messages[i].sender = malloc(sizeof(User)); //need to allocate a user first
+        messages[i].message = malloc(strlen(parts[0]) + 1);
         strcpy(messages[i].message, parts[0]);
-        messages[i].sender->name  = malloc(strlen(parts[2]) + 1);
+        messages[i].sender->name = malloc(strlen(parts[2]) + 1);
         strcpy(messages[i].sender->name, parts[2]);
         messages[i].timestamp = atoi(parts[1]);
-        free(parts);
         free(buff);
+        free(parts);
     }
     return count;
 }

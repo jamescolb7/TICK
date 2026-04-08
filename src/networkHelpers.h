@@ -38,3 +38,5 @@ char** dataParse(char* buff, char delimiter);
 
 char* dataPackage(char** msg_parts, int count, char delimiter);
 
+int recvAll(SOCKET sock, char *buf, int len);
+

@@ -48,7 +48,7 @@ char** dataParse(char* buff, char delimiter){
     int f_count = stringCounter(buff, delimiter);
 
     if(f_count > 0){
-        char** tmp = malloc(f_count);
+        char** tmp = malloc(f_count* sizeof(char*));
         char delimiter_str[2] = {delimiter,'\n'}; //i hate this solution but it works
         if (tmp == NULL){
             printf("Data parse failed! Memory allocation failure...");
@@ -69,6 +69,17 @@ char** dataParse(char* buff, char delimiter){
         return NULL;
     }
     return NULL;
+}
+
+//More robust recieve to ensure entire message is grabbed, since tcp protocol can send in multiple packages
+int recvAll(SOCKET sock, char *buf, int len) {
+    int total = 0;
+    while (total < len) {
+        int i = recv(sock, buf + total, len - total, 0);
+        if (i == SOCKET_ERROR || i == 0) return -1;
+        total += i;
+    }
+    return total;
 }
 
 // packages data into datapacket seperated by \f or wahtever delimiter u want ig

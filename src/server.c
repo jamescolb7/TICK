@@ -108,6 +108,10 @@ int postMessage(CommandType *cmd_type, SOCKET clientSocket, User* username_datab
         free(msgbuf);
         return 1;
     }
+
+    printf("parts: msg='%s' ts='%s' user='%s' channel='%s'\n",
+    msg_parts[0], msg_parts[1], msg_parts[2], msg_parts[3]);
+
     //order should be - 0 message, 1 timestamp, 2 user, 3 channel.
     int key = findUser(BSTUser->root, atoi(msg_parts[2]));
     if(key == -1){ //cannot find user meaning invalid user sent message. (security kinda)
@@ -128,8 +132,32 @@ int postMessage(CommandType *cmd_type, SOCKET clientSocket, User* username_datab
     
     //makes message
     Channel *curr_channel = getChannel(atoi(msg_parts[3]));
+    if(curr_channel == NULL){
+        printf("channel returned null, exiting\n");
+        free(msg_copy);
+        free(temp_user);
+        free(msg_parts);
+        free(msgbuf);
+        return 1;
+    }
     Message *new_message = initMessage(msg_copy, temp_user, atoi(msg_parts[1]), curr_channel);
+    if(new_message == NULL){
+        printf("init message failed, exiting\n");
+        free(msg_copy);
+        free(temp_user);
+        free(msg_parts);
+        free(msgbuf);
+        return 1;
+    }
     Node *ennode = initNode(new_message);
+    if(ennode == NULL){
+        printf("initNode failed, exiting\n");
+        free(msg_copy);
+        free(temp_user);
+        free(msg_parts);
+        free(msgbuf);
+        return 1;
+    }
     printf("Enque starting\n");
     int q_err = enqueue(curr_channel->deque, ennode);
     if(q_err == 0)
@@ -239,27 +267,21 @@ int latestMessages(CommandType* cmd_type, SOCKET clientSocket, Tree* BSTUser, Us
         printf("Channel or deque not found for id %d\n", channel_id);
         // send 0 count so client doesn't block
         char *zero = intToArray(0, LENBUFF_LEN);
-        sendOnSock(&clientSocket, zero, 4);
+        sendOnSock(&clientSocket, zero, LENBUFF_LEN);
         free(zero);
         return 1;
     }
     // count messages first
-    int msg_count = 0;
-    Node *counter = req_channel->deque->head;
-    while(counter != NULL && msg_count < 10){
-        msg_count++;
-        counter = counter->pright;
-    }
-    char *count_buf = intToArray(msg_count, LENBUFF_LEN);
+    int len = PULL_AMOUNT;
+    Message **message_array = readallF(req_channel->deque->head, &len);
+    char *count_buf = intToArray(len, LENBUFF_LEN);
     sendOnSock(&clientSocket, count_buf, LENBUFF_LEN);
     free(count_buf);
-    Node *current = req_channel->deque->head;
-    int len = PULL_AMOUNT;
-    Message **message_array = readallF(current, &len);  // pass &len so readallF can update actual count
     if(message_array == NULL){
-        printf("Failed to read messages from deque\n");
-        return 1;
+        printf("Failed to read messages from deque - empty queue! (0 message history)\n");
+        return 0;
     }
+    Node *current = req_channel->deque->head;
     printf("Only %i found, sending to client\n", len);
     for(int i = 0; i < len; i++){
         char *channel_string   = intToArray(message_array[i]->channel->channel_id,   LENBUFF_LEN);
