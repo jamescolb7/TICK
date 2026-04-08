@@ -39,3 +39,5 @@ void initializeDisplay();
 void interfaceCleanup(int sig);
 
 void setColour(char colour[]);
+
+void fetchMessages(char **inputsList);

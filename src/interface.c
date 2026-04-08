@@ -26,6 +26,8 @@ User currentUser = {0, "Undefined"};
 Message *msgs = NULL;
 int messageArrayCount = 0;
 
+int firstRenderedMain = 0;
+
 ScreenChannel channelsList[] = {
 	{GENERAL, "#general"}, {CHILL, "#chill"}, {MEMES, "#memes"}, {QUOTES, "#quotes"}, {NEWS, "#news"}, {OFF_TOPIC, "#off_topic"} 
 };
@@ -460,9 +462,51 @@ void renderView(ScreenDimensions dims, int lines, char **inputsList) {
 			drawUsernameInput(dims, inputsList);
 			break;
 		case MAIN:
-			drawRoot(dims, lines, inputsList);
+			//Render the first set of messages
+			if (!firstRenderedMain) {
+				firstRenderedMain = 1;
+				fetchMessages(inputsList);
+			} else {
+				drawRoot(dims, lines, inputsList);
+			}
 			break;
 	}
+}
+
+//Basic methods needed to open and close sockets quickly after every request is sent
+int createSocketInterface() {
+	if (sock == INVALID_SOCKET || sock == 0) {
+		return initializeClient(&sock, serverIP);
+	} else {
+		return 0;
+	}
+}
+
+void shutdownSocket() {
+	if (sock != INVALID_SOCKET) {
+		sockShutdown(sock);
+		sock = INVALID_SOCKET;
+	}
+}
+
+void fetchMessages(char **inputsList) {
+	if (sock == INVALID_SOCKET){
+		if(createSocketInterface()){
+			return;
+		}
+	}
+	// Message tempmessages[10];
+	recieveMsgLatest(&sock, selectedChannel, &msgs, &messageArrayCount);
+
+	sockShutdown(sock);
+
+	clearScreen();
+
+	ScreenDimensions dims = screenSize();
+
+	renderView(dims, 0, inputsList);
+
+	sock = INVALID_SOCKET;
 }
 
 int writeToInput(int c, Inputs input, char **inputsList) {
@@ -511,42 +555,6 @@ int writeToInput(int c, Inputs input, char **inputsList) {
     return 1;
 }
 
-//Basic methods needed to open and close sockets quickly after every request is sent
-int createSocketInterface() {
-	if (sock == INVALID_SOCKET || sock == 0) {
-		return initializeClient(&sock, serverIP);
-	} else {
-		return 0;
-	}
-}
-
-void shutdownSocket() {
-	if (sock != INVALID_SOCKET) {
-		sockShutdown(sock);
-		sock = INVALID_SOCKET;
-	}
-}
-
-void fetchMessages(char **inputsList) {
-	if (sock == INVALID_SOCKET){
-		if(createSocketInterface()){
-			return;
-		}
-	}
-	// Message tempmessages[10];
-	recieveMsgLatest(&sock, selectedChannel, &msgs, &messageArrayCount);
-
-	sockShutdown(sock);
-
-	clearScreen();
-
-	ScreenDimensions dims = screenSize();
-
-	renderView(dims, 0, inputsList);
-
-	sock = INVALID_SOCKET;
-}
-
 //Basic screen input handling
 void handleInput(int c, char **inputsList) {
 	// printf("%d", c);
@@ -557,9 +565,9 @@ void handleInput(int c, char **inputsList) {
 		case HOST_PAGE:
 			if (c == 13) {
 				//Enter pressed, move to next page, make sure something is at least typed
+				if (createSocketInterface()) break;
 				if (strlen(inputsList[SERVER_IP_INPUT]) != 0) screen = USERNAME_PAGE;
 				serverIP = inputsList[SERVER_IP_INPUT];
-				if (createSocketInterface()) break;
 				shutdownSocket();
 			} else {
 				writeToInput(c, SERVER_IP_INPUT, inputsList);
@@ -593,9 +601,6 @@ void handleInput(int c, char **inputsList) {
 				
 				// printf("%d", strlen(inputsList[MESSAGE]));
 				if (strlen(inputsList[MESSAGE]) == 0) break;
-				
-				clearLines(2, dims);
-				renderView(dims, 2, inputsList);
 				
 				if (createSocketInterface()) break;
 
@@ -631,6 +636,11 @@ void handleInput(int c, char **inputsList) {
 				}
 
 				shutdownSocket();
+
+				clearLines(2, dims);
+				renderView(dims, 2, inputsList);
+
+				fetchMessages(inputsList);
 			} else if (c == 96) {
 				fetchMessages(inputsList);
 			} else if (c == 9) {
@@ -640,8 +650,8 @@ void handleInput(int c, char **inputsList) {
 				} else {
 					selectedChannel++;
 				}
-				clearScreen();
-				renderView(dims, 0, inputsList);
+
+				fetchMessages(inputsList);
 			} else {
 				writeToInput(c, MESSAGE, inputsList);
 			}
