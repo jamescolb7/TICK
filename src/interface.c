@@ -55,7 +55,7 @@ void clearLines(int lines, ScreenDimensions dims) {
 }
 
 //Nicely handles cleaning the screen after the SIGTERM is detected
-void interfaceCleanup() {
+void interfaceCleanup(int sig) {
 	clockRunning = 0;
 	clearScreen();
 }
@@ -114,7 +114,7 @@ void drawChannels(int x, int y) {
 		if (y % 2 == 1) {
 			int index = (y - 3) / 2;
 			if (index >= 0 && index < sizeof(channelsList) / sizeof(channelsList[0])) {
-				char *str = channelsList[index].channel_name;
+				const char *str = channelsList[index].channel_name; // needs const or we get a warning... im not sure why
 				int stringIndex = x - 3;
 				if (stringIndex < strlen(str) && strlen(str) != 0) {
 					printf("%c", str[stringIndex]);
@@ -263,7 +263,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	for (int y = startHeight; y < dims.height; y++) {
 		for (int x = 0; x < dims.width; x++) {
 			//First header row
-			char *channelName = channelsList[selectedChannel].channel_name;
+			const char *channelName = channelsList[selectedChannel].channel_name; //also requires const... not sure
 			int channelNameSize = strlen(channelName);
 
 			if (y == 0) {

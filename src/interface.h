@@ -1,15 +1,5 @@
 #define TOTAL_INPUTS 3
 
-void drawRoot();
-
-void clearScreen();
-
-void initializeDisplay();
-
-void interfaceCleanup();
-
-void setColour(char colour[]);
-
 typedef struct {
 	int height;
 	int width;
@@ -39,3 +29,13 @@ typedef enum {
 	USERNAME_PAGE,
 	MAIN
 } Screens;
+
+void drawRoot(ScreenDimensions dims, int startLine, char **inputsList);
+
+void clearScreen();
+
+void initializeDisplay();
+
+void interfaceCleanup(int sig);
+
+void setColour(char colour[]);
