@@ -46,29 +46,24 @@ int stringCounter(char* buff, char des){
  //order should be - 0 message, 1 timestamp, 2 user, 3 channel.
 char** dataParse(char* buff, char delimiter){
     int f_count = stringCounter(buff, delimiter);
+    int token_count = f_count + 1;
 
-    if(f_count > 0){
-        char** tmp = malloc(f_count* sizeof(char*));
-        char delimiter_str[2] = {delimiter,'\n'}; //i hate this solution but it works
-        if (tmp == NULL){
-            printf("Data parse failed! Memory allocation failure...");
-            free(tmp);
-            return NULL;
-        }
-        char* token = strtok(buff,delimiter_str);
-        int count = 0;
-        while(token != NULL){
-            tmp[count] = token;
-            count++;
-            token = strtok(NULL,delimiter_str);
-        }
-        return tmp;
-    }
-    else{
-        printf("Data parse failed! Invalid packet. Exiting data parse...\n");
+    char** tmp = calloc(token_count + 1, sizeof(char*));
+    if (tmp == NULL){
+        printf("Data parse failed! Memory allocation failure...\n");
         return NULL;
     }
-    return NULL;
+
+    char delimiter_str[2] = {delimiter,'\0'}; // i hate this solution but it works
+    char* token = strtok(buff, delimiter_str);
+    int count = 0;
+    while(token != NULL && count < token_count){
+        tmp[count] = token;
+        count++;
+        token = strtok(NULL, delimiter_str);
+    }
+    tmp[count] = NULL;
+    return tmp;
 }
 
 //More robust recieve to ensure entire message is grabbed, since tcp protocol can send in multiple packages

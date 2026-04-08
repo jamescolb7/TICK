@@ -14,7 +14,7 @@
 // #define SERVER_ADDRESS "10.218.56.137"
 #define CMD_LEN 4 //dont change thes unless you are extremely aware of what the hell you are doing
 #define LENBUFF_LEN 4 //this is the sent char array length of the length info. using atoi, this means a max length of 9999, which is inefficent but whatever
-#define DELIMITER '-' //delimiter to fit between packages sent on tcp
+#define DELIMITER '\r' //delimiter to fit between packages sent on tcp
 
 #define PULL_AMOUNT 20 // total pull amount for recieve messga latest
 #define USERNAMEDATABASE_SIZE 20
@@ -93,6 +93,7 @@ void freeMessages(Message *msgs, int count) {
 
 //it this will send back the latest like 20 messages along with their timestamps, who they were sent by, and their timestamp, given which channel it was sent. ALSO the return is the length of the array returned, w -1 being failure
 int recieveMsgLatest(SOCKET *socket, int channel_id, Message **messages, int *messageCount){
+    
     char *lms = "#LMS";
     int clie_err = sendOnSock(socket, lms, (int)strlen(lms));
     if (clie_err == 1)
@@ -104,8 +105,8 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, Message **messages, int *me
         return -1;
     // recv count first
     char count_str[LENBUFF_LEN+1];
-    clie_err = recv(*socket, count_str, LENBUFF_LEN, 0);
-    if(clie_err == SOCKET_ERROR) return -1;
+    clie_err = recvAll(*socket, count_str, LENBUFF_LEN);
+    if(clie_err != LENBUFF_LEN) return -1;
     count_str[LENBUFF_LEN] = '\0';
     int count = atoi(count_str);
     
@@ -113,23 +114,32 @@ int recieveMsgLatest(SOCKET *socket, int channel_id, Message **messages, int *me
         freeMessages(*messages, *messageCount);
         *messages = NULL;
     }
+     
+    if (count == 0) {
+        *messages = NULL;
+        *messageCount = 0;
+        return 0;
+    }
+
+    *messageCount = count;
     
     *messages = calloc(count,sizeof(Message));
 
     //Adjust the count available to interface
-    *messageCount = count;
+    
+    
 
     for(int i = 0; i < count; i++){
         int content_len;
         char lenbuff[LENBUFF_LEN+1];
-        clie_err = recv(*socket, lenbuff, LENBUFF_LEN, 0);
-        if (clie_err == SOCKET_ERROR) return -1;
-        if (clie_err == 0) return i;
+        clie_err = recvAll(*socket, lenbuff, LENBUFF_LEN);
+        if (clie_err != LENBUFF_LEN) return -1;
         lenbuff[LENBUFF_LEN] = '\0';
         content_len = atoi(lenbuff);
         char *buff = malloc(content_len + 1);
-        clie_err = recv(*socket, buff, content_len, 0);
-        if (clie_err == SOCKET_ERROR){
+        if (buff == NULL) return -1;
+        clie_err = recvAll(*socket, buff, content_len);
+        if (clie_err != content_len){
             free(buff);
             return -1;
         }

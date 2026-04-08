@@ -14,7 +14,7 @@
 #define SERVER_ADDRESS "0.0.0.0"
 #define CMD_LEN 4 //dont change thes unless you are extremely aware of what the hell you are doing
 #define LENBUFF_LEN 4 //this is the sent char array length of the length info. using atoi, this means a max length of 9999, which is inefficent but whatever
-#define DELIMITER '-' //delimiter to fit between packages sent on tcp
+#define DELIMITER '\r' //delimiter to fit between packages sent on tcp
 
 #define PULL_AMOUNT 20 // total pull amount for recieve messga latest
 #define USERNAMEDATABASE_SIZE 20
@@ -182,13 +182,19 @@ int genUserBST(User* username_database, Tree** BSTUser){
 
 int genUserHelper(char* username, User* username_database, Tree* BSTUser){
     User* new_user = malloc(sizeof(User));
-    new_user->name = username;
+    if (new_user == NULL) return -1;
+
+    new_user->name = malloc(strlen(username) + 1);
+    if (new_user->name == NULL) {
+        free(new_user);
+        return -1;
+    }
+    strcpy(new_user->name, username);
 
     int retval;
-    int random_num; 
-    //uses random values to find a valid UUID that is NOT taken in the BST user array. this gets more and more inefficent to generate new users - but as a tradeoff is the best method we have so far. 
+    int random_num;
     do {
-        random_num = rand() % 10000;
+        random_num = rand() % 10000; //RANDOM NUM to better baalnce BST 
         retval = findUser(BSTUser->root, random_num);
     } while(retval != -1);
 
@@ -199,7 +205,7 @@ int genUserHelper(char* username, User* username_database, Tree* BSTUser){
     num_of_users++;
     insert(BSTUser->root, tree_node);
 
-	printf("made a new user! - @ UUID %d\n",new_user->UUID);
+    printf("made a new user! - @ UUID %d\n", new_user->UUID);
 
     return new_user->UUID;
 }
@@ -273,7 +279,7 @@ int latestMessages(CommandType* cmd_type, SOCKET clientSocket, Tree* BSTUser, Us
     }
     // count messages first
     int len = PULL_AMOUNT;
-    Message **message_array = readallF(req_channel->deque->head, &len);
+    Message **message_array = readallF(req_channel->deque->tail, &len);
     char *count_buf = intToArray(len, LENBUFF_LEN);
     sendOnSock(&clientSocket, count_buf, LENBUFF_LEN);
     free(count_buf);

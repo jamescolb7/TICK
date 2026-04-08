@@ -200,7 +200,7 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 	int messageIndex = (int)(offsetY / 3);
 
 	//With this logic, the message index should never be out of bounds of the messages array
-	if (messages == NULL || messageIndex >= messageArrayCount) {
+	if (messages == NULL || messageIndex < 0 || messageIndex >= messageArrayCount) {
 		printf(" ");
 		return 1;
 	}
@@ -235,6 +235,12 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 			//Content
 			setColour(TEXT);
 
+			if (message.message == NULL) { 
+				//check incase message is null
+				printf(" "); 
+				break; 
+			}
+
 			int contentLen = strlen(message.message);
 			if (offsetX >= 0 && offsetX < contentLen) {
 				printf("%c", message.message[offsetX]);
@@ -254,6 +260,7 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 			printf(" ");
 			break;
 	}
+	return 0;
 
 	// printf("%d", offsetY);
 }
@@ -481,7 +488,7 @@ int writeToInput(int c, Inputs input, char **inputsList) {
 			inputsList[input] = newStr;
 		} else {
 			//Adding a new character
-			char *newStr = realloc(str, (currentLength + 1) * sizeof(char));
+			char *newStr = realloc(str, (currentLength + 2) * sizeof(char));
 			if (newStr == NULL) return 0;
 
 			newStr[currentLength] = (char)c;
@@ -509,7 +516,7 @@ int createSocketInterface() {
 	if (sock == INVALID_SOCKET || sock == 0) {
 		return initializeClient(&sock, serverIP);
 	} else {
-		return 1;
+		return 0;
 	}
 }
 
@@ -521,7 +528,11 @@ void shutdownSocket() {
 }
 
 void fetchMessages(char **inputsList) {
-	if (sock == INVALID_SOCKET) createSocketInterface();
+	if (sock == INVALID_SOCKET){
+		if(createSocketInterface()){
+			return;
+		}
+	}
 	// Message tempmessages[10];
 	recieveMsgLatest(&sock, selectedChannel, &msgs, &messageArrayCount);
 
@@ -604,6 +615,7 @@ void handleInput(int c, char **inputsList) {
 
 				if (m != NULL && sock != INVALID_SOCKET) {
 					int send_err = sendMessage(&sock, m);
+					free(m);
 				}
 
 				char *newMessageText = (char *)malloc(sizeof(char));
