@@ -25,7 +25,7 @@ int sendOnSock(SOCKET *socket, char *message, int len) {
         closeSocket("Send failed", NULL, socket);
         return 1;
     }
-    printf("Bytes Sent: %ld\n", send_err);
+    //printf("Bytes Sent: %ld\n", send_err);
     return 0;
 }
 

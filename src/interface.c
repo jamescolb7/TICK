@@ -22,17 +22,7 @@ SOCKET sock;
 User currentUser = {0, "Undefined"};
 // Channel currentChannel = {"Undefined",}
 
-ScreenMessage msgs[20] = {
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0},
-		{"", "", 0}
-};
+ScreenMessage msgs[20] = {{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0},{"", "", 0}};
 
 int messageArrayCount = 0;
 
@@ -506,8 +496,20 @@ int writeToInput(int c, Inputs input, char **inputsList) {
     return 1;
 }
 
-void createSocketInterface() {
-	initializeClient(&sock, serverIP);
+//Basic methods needed to open and close sockets quickly after every request is sent
+int createSocketInterface() {
+	if (sock == INVALID_SOCKET || sock == 0) {
+		return initializeClient(&sock, serverIP);
+	} else {
+		return 1;
+	}
+}
+
+void shutdownSocket() {
+	if (sock != INVALID_SOCKET) {
+		sockShutdown(sock);
+		sock = INVALID_SOCKET;
+	}
 }
 
 void fetchMessages(char **inputsList) {
@@ -538,7 +540,8 @@ void handleInput(int c, char **inputsList) {
 				//Enter pressed, move to next page, make sure something is at least typed
 				if (strlen(inputsList[SERVER_IP_INPUT]) != 0) screen = USERNAME_PAGE;
 				serverIP = inputsList[SERVER_IP_INPUT];
-				createSocketInterface();
+				if (createSocketInterface()) break;
+				shutdownSocket();
 			} else {
 				writeToInput(c, SERVER_IP_INPUT, inputsList);
 			}
@@ -547,6 +550,7 @@ void handleInput(int c, char **inputsList) {
 			if (c == 13) {
 				//Enter pressed, move to next page, make sure something is at least typed
 				if (strlen(inputsList[USERNAME_INPUT]) != 0) screen = MAIN;
+				if (createSocketInterface()) break;
 				int userId = genUser(&sock, inputsList[USERNAME_INPUT]);
 
 				User u = {
@@ -556,6 +560,8 @@ void handleInput(int c, char **inputsList) {
 
 				currentUser.UUID = u.UUID;
 				currentUser.name = u.name;
+
+				shutdownSocket();
 			} else {
 				writeToInput(c, USERNAME_INPUT, inputsList);
 			}
@@ -566,19 +572,19 @@ void handleInput(int c, char **inputsList) {
 			if (c == 13) {
 				//Handle logic to send the message to the server
 				
-				printf("%d", strlen(inputsList[MESSAGE]));
+				// printf("%d", strlen(inputsList[MESSAGE]));
 				if (strlen(inputsList[MESSAGE]) == 0) break;
 				
 				// clearLines(2, dims);
 				// renderView(dims, 2, inputsList);
 				
+				if (createSocketInterface()) break;
+
 				MessageDeque *blankDeque = (MessageDeque *)malloc(sizeof(MessageDeque));
 				if (blankDeque != NULL) {
 					blankDeque->head = NULL;
 					blankDeque->tail = NULL;
 				}
-
-				if (sock == INVALID_SOCKET) createSocketInterface();
 
 				Channel channelObj = {
 					channelsList[selectedChannel].channel_name,
@@ -605,9 +611,7 @@ void handleInput(int c, char **inputsList) {
 					free(blankDeque);
 				}
 
-				sockShutdown(sock);
-
-				sock = INVALID_SOCKET;
+				shutdownSocket();
 			} else if (c == 96) {
 				fetchMessages(inputsList);
 			} else if (c == 9) {

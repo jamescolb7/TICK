@@ -52,12 +52,13 @@ int handshakeServ(SOCKET clientSocket){
     command[CMD_LEN] = '\0';
     if(get_command(command) == HANDSHAKE){
         printf("Handshake received from client, repsonding\n");
-        send(clientSocket, "#HSK", 4, 0);
+        send(clientSocket, "#HSK", CMD_LEN, 0);
     } 
     else {
         printf("Invalid command received from client - %s is not valid\n", command);
         return 1;
     }
+    return 0;
 }
 
 //recvives the post message command to put into buffer.
@@ -217,6 +218,7 @@ int genUser(CommandType* cmd_type, SOCKET clientSocket,Tree* BSTUser, User* user
         }
     }
     free(gac_buf);
+    return 0;
 }
 
 int latestMessages(CommandType* cmd_type, SOCKET clientSocket, Tree* BSTUser, User* username_database){

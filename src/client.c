@@ -30,19 +30,21 @@ Channel* getChannel(ChannelNameId id) {
 }
 
  //sends command, then the combinded message itself w username, channelid w -- inbetween, returns 1 on failure
-int sendMessage(SOCKET *socket, Message* m_message) {
+int sendMessage(SOCKET socket, Message *m_message) {
     char *command = "#POM";
-    int send_err = sendOnSock(socket, command, (int)strlen(command));
+
+    int send_err = sendOnSock(&socket, command, CMD_LEN);
     if (send_err == 1)
         return 1;
 
     char *channel_string   = intToArray(m_message->channel->channel_id, LENBUFF_LEN);
-    char *timestamp_string = intToArray(m_message->timestamp,           LENBUFF_LEN);
-    char *UUID_string      = intToArray(m_message->sender->UUID,        LENBUFF_LEN);
+    char *timestamp_string = intToArray(m_message->timestamp, LENBUFF_LEN);
+    char *UUID_string      = intToArray(m_message->sender->UUID,LENBUFF_LEN);
 
     // order should be - 0 message, 1 timestamp, 2 user, 3 channel.
     char *msg_values[4] = {m_message->message, timestamp_string, UUID_string, channel_string};
     char *msg_packed = dataPackage(msg_values, DELIMITER);
+
     if(msg_packed == NULL){
         free(channel_string);
         free(timestamp_string);
