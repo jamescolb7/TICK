@@ -1,3 +1,16 @@
+/*
+FILENAME:   client.c
+COURSE:     MREN 178
+
+~ Group 1 ~
+
+Beric Dengler            STUDENT ID: 20515669
+James Colbourne          STUDENT ID: 20523893
+Nicolas Kaye             STUDENT ID: 20506269
+Lukas Nuzzi              STUDENT ID: 20524153
+
+*/
+
 #define WIN32_LEAN_AND_MEAN
 
 #include <winsock2.h>

@@ -1,3 +1,14 @@
+/*
+FILENAME:   DSAFunctions.c
+COURSE:     MREN 178
+
+~ Group 1 ~
+
+Nicolas Kaye             STUDENT ID: 20506269
+Lukas Nuzzi              STUDENT ID: 20524153
+
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 

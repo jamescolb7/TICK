@@ -1,3 +1,13 @@
+/*
+FILENAME:   interface.c
+COURSE:     MREN 178
+
+~ Group 1 ~
+
+James Colbourne          STUDENT ID: 20523893
+
+*/
+
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>

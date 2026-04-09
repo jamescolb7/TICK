@@ -1,3 +1,14 @@
+/*
+FILENAME:   networkHelpers.c
+COURSE:     MREN 178
+
+~ Group 1 ~
+
+Beric Dengler            STUDENT ID: 20515669
+James Colbourne          STUDENT ID: 20523893
+
+*/
+
 #include <stdio.h>
 #include <winsock2.h>
 #include <ws2tcpip.h> 

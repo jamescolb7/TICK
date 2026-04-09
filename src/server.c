@@ -1,3 +1,13 @@
+/*
+FILENAME:   server.c
+COURSE:     MREN 178
+
+~ Group 1 ~
+
+Beric Dengler            STUDENT ID: 20515669
+
+*/
+
 #define WIN32_LEAN_AND_MEAN
 
 #include <winsock2.h>
