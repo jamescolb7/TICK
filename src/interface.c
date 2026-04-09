@@ -527,9 +527,9 @@ void handleInput(int c, char **inputsList) {
 		case HOST_PAGE:
 			if (c == 13) {
 				//Enter pressed, move to next page, make sure something is at least typed
-				if (createSocketInterface()) break;
 				if (strlen(inputsList[SERVER_IP_INPUT]) != 0) screen = USERNAME_PAGE;
 				serverIP = inputsList[SERVER_IP_INPUT];
+				if (createSocketInterface()) break;
 				shutdownSocket();
 			} else {
 				writeToInput(c, SERVER_IP_INPUT, inputsList);
