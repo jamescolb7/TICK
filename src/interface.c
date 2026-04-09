@@ -20,12 +20,12 @@ char *serverIP = "";
 
 SOCKET sock;
 User currentUser = {0, "Undefined"};
-// Channel currentChannel = {"Undefined",}
 
-///depercated implementation
+//Store messages
 Message *msgs = NULL;
 int messageArrayCount = 0;
 
+//Have messages been fetched on first run?
 int firstRenderedMain = 0;
 
 ScreenChannel channelsList[] = {
@@ -62,7 +62,7 @@ void interfaceCleanup(int sig) {
 	clearScreen();
 }
 
-//Retrieve terminal dimensions from the Windows API
+//Retrieve terminal dimensions from the Windows API (See: https://stackoverflow.com/questions/6812224/getting-terminal-size-in-c-for-windows)
 ScreenDimensions screenSize() {
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 
@@ -107,10 +107,12 @@ void drawBox(int x, int y, struct BoxOptions options, void (*f)(int x, int y)) {
 	} else if (y == start.y || y == end.y) {
 		charPrint(asciiChars[4]);
 	} else {
+		//Call the other function to print stuff inside
 		(*f)(x, y);
 	}
 }
 
+//Draw the channels on the side
 void drawChannels(int x, int y) {
 	if (y >= 3 && y <= 13 && x >= 3 && x <= 22) {
 		if (y % 2 == 1) {
@@ -138,60 +140,8 @@ void drawChannels(int x, int y) {
 	}
 };
 
-//Handles drawing of actual messages to the screen
-// int drawMessages(int x, int y, ScreenMessage messages[], int messagesCount, ScreenDimensions dims) {
-// 	//Find what message this would correspond to based on the y value
-// 	int messageIndex = ((dims.height - 5) - y) / 3;
-	
-// 	//Find the position of the header line
-// 	int headerLinePos = dims.height - 7 - messageIndex * 3;
-	
-// 	//Making sure that the entire message can be rendered in the space, so that no content is cutoff
-// 	if (headerLinePos < 2) {
-// 		printf(" ");
-// 		return 0;
-// 	}
-	
-// 	//Making sure the index is valid and won't cause any memory issues
-// 	if (messageIndex < 0 || messageIndex >= messagesCount) {
-// 		printf(" ");
-// 		return 0;
-// 	}
-	
-// 	ScreenMessage message = messages[messageIndex];
-// 	int lineType = y - headerLinePos;
-// 	int stringIndex = x - 27;
-	
-// 	if (lineType == 0) {
-// 		//Header
-// 		setColour(HEADER);
-// 		int userLen = strlen(message.username);
-// 		if (stringIndex >= 0 && stringIndex < userLen) {
-// 			printf("%c", message.username[stringIndex]);
-// 		} else {
-// 			printf(" ");
-// 		}
-// 		setColour(BACKGROUND);
-// 	} else if (lineType == 1) {
-// 		//Content
-// 		setColour(TEXT);
-// 		int contentLen = strlen(message.message);
-// 		if (stringIndex >= 0 && stringIndex < contentLen) {
-// 			printf("%c", message.message[stringIndex]);
-// 		} else {
-// 			printf(" ");
-// 		}
-// 		setColour(BACKGROUND);
-// 	} else {
-// 		//Handle any other line type values
-// 		printf(" ");
-// 	}
-	
-// 	return 1;
-// }
-
+//Draw messages to the screen
 int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
-	// return 1;
 	//The y value with the header spacing removed
 	int offsetY = y - 2;
 
@@ -250,7 +200,6 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 				printf(" ");
 			}
 
-			// printf("C");
 			setColour(BACKGROUND);
 			break;
 		case 2:
@@ -263,10 +212,9 @@ int drawMessages(int x, int y, Message messages[], ScreenDimensions dims) {
 			break;
 	}
 	return 0;
-
-	// printf("%d", offsetY);
 }
 
+//Drawing the main "interface" for the app
 void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	char appName[] = "TICK";
 	int appNameSize = strlen(appName);
@@ -373,6 +321,7 @@ void drawRoot(ScreenDimensions dims, int startLine, char **inputsList) {
 	setCursorPos(28, dims.height - 1);
 }
 
+//Page to type in the server ip
 void drawHostInput(ScreenDimensions dims, char **inputsList) {
 	char header[18] = "Enter a Server IP:";
 
@@ -411,6 +360,7 @@ void drawHostInput(ScreenDimensions dims, char **inputsList) {
 	}
 }
 
+//Page to type in a username
 void drawUsernameInput(ScreenDimensions dims, char **inputsList) {
 	char header[18] = "Enter a Username:";
 
@@ -489,6 +439,7 @@ void shutdownSocket() {
 	}
 }
 
+//Update msgs array with latest msgs, refresh the screen
 void fetchMessages(char **inputsList) {
 	if (sock == INVALID_SOCKET){
 		if(createSocketInterface()){
@@ -509,6 +460,7 @@ void fetchMessages(char **inputsList) {
 	sock = INVALID_SOCKET;
 }
 
+//Updating a specific input from the inputsList
 int writeToInput(int c, Inputs input, char **inputsList) {
 		//Make sure the char is something valid, (a-z, A-Z, symbols, etc, not things like delete)
 		if ((c < 33 || c > 126) && c != 32 && c != 8) return 0;
@@ -604,6 +556,7 @@ void handleInput(int c, char **inputsList) {
 				
 				if (createSocketInterface()) break;
 
+				//Initializing blank message deques, as the types are the same as the server, could maybe have different types for next time
 				MessageDeque *blankDeque = (MessageDeque *)malloc(sizeof(MessageDeque));
 				if (blankDeque != NULL) {
 					blankDeque->head = NULL;
@@ -618,11 +571,13 @@ void handleInput(int c, char **inputsList) {
 
 				Message *m = initMessage(inputsList[MESSAGE], &currentUser, 0, &channelObj);
 
+				//Send message
 				if (m != NULL && sock != INVALID_SOCKET) {
 					int send_err = sendMessage(&sock, m);
 					free(m);
 				}
 
+				//Making a new empty string to replace the current text
 				char *newMessageText = (char *)malloc(sizeof(char));
 				if (newMessageText != NULL) {
 					newMessageText[0] = '\0';
@@ -642,6 +597,7 @@ void handleInput(int c, char **inputsList) {
 
 				fetchMessages(inputsList);
 			} else if (c == 96) {
+				//~ refresh
 				fetchMessages(inputsList);
 			} else if (c == 9) {
 				//Handle tab to loop through selected channels
@@ -653,6 +609,7 @@ void handleInput(int c, char **inputsList) {
 
 				fetchMessages(inputsList);
 			} else {
+				//Normal key pressed, probably typing it to an input
 				writeToInput(c, MESSAGE, inputsList);
 			}
 			break;
